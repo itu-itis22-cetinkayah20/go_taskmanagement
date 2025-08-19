@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
+	"time"
 )
 
 var baseURL = "http://localhost:8080"
@@ -14,15 +15,19 @@ var testToken string
 var testTaskID int
 
 func TestAPI(t *testing.T) {
+	// Benzersiz username ve task title üret
+	uniqueUsername := fmt.Sprintf("testuser_%d", time.Now().UnixNano())
+	uniqueTaskTitle := fmt.Sprintf("Test Görev %d", time.Now().UnixNano())
+
 	// Register
-	resp := post(t, "/register", map[string]string{"username": "testuser5", "password": "123456"}, "")
+	resp := post(t, "/register", map[string]string{"username": uniqueUsername, "password": "123456"}, "")
 	if resp.StatusCode != 201 {
 		t.Fatalf("Register failed: %s", respBody(resp))
 	}
 	fmt.Println("Register test passed.")
 
 	// Login
-	resp = post(t, "/login", map[string]string{"username": "testuser5", "password": "123456"}, "")
+	resp = post(t, "/login", map[string]string{"username": uniqueUsername, "password": "123456"}, "")
 	if resp.StatusCode != 200 {
 		t.Fatalf("Login failed: %s", respBody(resp))
 	}
@@ -39,7 +44,7 @@ func TestAPI(t *testing.T) {
 	fmt.Println("Public tasks test passed.")
 
 	// Create task
-	task := map[string]string{"title": "Test Görev", "details": "Detay"}
+	task := map[string]string{"title": uniqueTaskTitle, "details": "Detay"}
 	resp = post(t, "/tasks", task, testToken)
 	if resp.StatusCode != 201 {
 		t.Fatalf("Task create failed: %s", respBody(resp))
@@ -145,6 +150,6 @@ func deleteReq(t *testing.T, path, token string) *http.Response {
 }
 
 func respBody(resp *http.Response) string {
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	return string(b)
 }
