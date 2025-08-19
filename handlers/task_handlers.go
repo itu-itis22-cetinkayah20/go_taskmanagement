@@ -2,20 +2,34 @@ package handlers
 
 import (
 	"encoding/json"
+	"go_taskmanagement/middleware"
 	"go_taskmanagement/models"
 	"net/http"
 	"strconv"
 
-	"go_taskmanagement/middleware"
-
 	"github.com/gorilla/mux"
 )
 
+// PublicTasksHandler herkese açık görevleri listeler
+// @Summary Public görevleri listele
+// @Description Herkesin görebileceği görevleri döner
+// @Tags Tasks
+// @Produce json
+// @Success 200 {array} models.Task
+// @Router /tasks/public [get]
 func PublicTasksHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(models.PublicTasks)
 }
 
+// TasksListHandler kullanıcının kendi görevlerini listeler
+// @Summary Kullanıcı görevlerini listele
+// @Description Sadece giriş yapan kullanıcının görevlerini döner
+// @Tags Tasks
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} models.Task
+// @Router /tasks [get]
 func TasksListHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
@@ -33,6 +47,17 @@ func TasksListHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(userTasks)
 }
 
+// TaskCreateHandler yeni görev ekler
+// @Summary Görev ekle
+// @Description Yeni görev oluşturur
+// @Tags Tasks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param task body models.Task true "Görev"
+// @Success 201 {object} models.Task
+// @Failure 400 {object} map[string]string
+// @Router /tasks [post]
 func TaskCreateHandler(w http.ResponseWriter, r *http.Request) {
 	var task models.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
@@ -59,6 +84,16 @@ func TaskCreateHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
+// TaskDetailHandler görev detayını döner
+// @Summary Görev detayını görüntüle
+// @Description Belirli bir görevin detayını döner
+// @Tags Tasks
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Görev ID"
+// @Success 200 {object} models.Task
+// @Failure 404 {object} map[string]string
+// @Router /tasks/{id} [get]
 func TaskDetailHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
@@ -85,6 +120,18 @@ func TaskDetailHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"error":"Görev bulunamadı veya yetkiniz yok"}`))
 }
 
+// TaskUpdateHandler görevi günceller
+// @Summary Görev güncelle
+// @Description Belirli bir görevi günceller
+// @Tags Tasks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Görev ID"
+// @Param task body models.Task true "Görev"
+// @Success 200 {object} models.Task
+// @Failure 404 {object} map[string]string
+// @Router /tasks/{id} [put]
 func TaskUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
@@ -119,6 +166,15 @@ func TaskUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"error":"Görev bulunamadı veya yetkiniz yok"}`))
 }
 
+// TaskDeleteHandler görevi siler
+// @Summary Görev sil
+// @Description Belirli bir görevi siler
+// @Tags Tasks
+// @Security BearerAuth
+// @Param id path int true "Görev ID"
+// @Success 204 {string} string ""
+// @Failure 404 {object} map[string]string
+// @Router /tasks/{id} [delete]
 func TaskDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {

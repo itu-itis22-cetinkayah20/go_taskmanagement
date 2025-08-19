@@ -1,18 +1,24 @@
 package main
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 import (
+	_ "go_taskmanagement/docs" // Swagger dokümantasyonu için
 	"go_taskmanagement/handlers"
 	"go_taskmanagement/middleware"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/swaggo/http-swagger"
 )
 
 func main() {
-	// ...existing code...
-
 	r := mux.NewRouter()
+	// Swagger UI endpoints
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	// Public endpoints
 	r.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
 	r.HandleFunc("/login", handlers.LoginHandler).Methods("POST")

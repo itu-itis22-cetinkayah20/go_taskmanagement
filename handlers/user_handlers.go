@@ -12,6 +12,16 @@ import (
 
 var jwtKey = []byte("gizliAnahtar")
 
+// RegisterHandler kullanıcı kaydı oluşturur
+// @Summary Kullanıcı kaydı
+// @Description Yeni kullanıcı oluşturur
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param user body models.User true "Kullanıcı"
+// @Success 201 {object} models.User
+// @Failure 400 {object} map[string]string
+// @Router /register [post]
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -47,6 +57,17 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// LoginHandler kullanıcı girişi yapar ve JWT token döner
+// @Summary Kullanıcı girişi
+// @Description Kullanıcı adı ve şifre ile giriş yapar
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param user body models.User true "Kullanıcı"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Security BearerAuth
+// @Router /login [post]
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var creds models.User
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -89,6 +110,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 }
 
+// LogoutHandler kullanıcıyı çıkış yaptırır
+// @Summary Çıkış
+// @Description Kullanıcıyı çıkış yaptırır
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Security BearerAuth
+// @Router /logout [post]
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message":"Çıkış başarılı. Token client tarafından silinmeli."}`))
