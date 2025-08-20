@@ -6,8 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"go_taskmanagement/handlers"
+	"go_taskmanagement/middleware"
+
+	"github.com/gorilla/mux"
 )
 
 var baseURL = "http://localhost:8080"
@@ -15,6 +21,23 @@ var testToken string
 var testTaskID int
 
 func TestAPI(t *testing.T) {
+	// Start test HTTP server
+	router := mux.NewRouter()
+	// Public endpoints
+	router.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
+	router.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
+	router.HandleFunc("/tasks/public", handlers.PublicTasksHandler).Methods("GET")
+	// Private endpoints
+	router.HandleFunc("/tasks", middleware.AuthMiddleware(handlers.TasksListHandler)).Methods("GET")
+	router.HandleFunc("/tasks", middleware.AuthMiddleware(handlers.TaskCreateHandler)).Methods("POST")
+	router.HandleFunc("/tasks/{id}", middleware.AuthMiddleware(handlers.TaskDetailHandler)).Methods("GET")
+	router.HandleFunc("/tasks/{id}", middleware.AuthMiddleware(handlers.TaskUpdateHandler)).Methods("PUT")
+	router.HandleFunc("/tasks/{id}", middleware.AuthMiddleware(handlers.TaskDeleteHandler)).Methods("DELETE")
+	router.HandleFunc("/logout", middleware.AuthMiddleware(handlers.LogoutHandler)).Methods("POST")
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+	baseURL = srv.URL
+
 	// Benzersiz username ve task title üret
 	uniqueUsername := fmt.Sprintf("testuser_%d", time.Now().UnixNano())
 	uniqueTaskTitle := fmt.Sprintf("Test Görev %d", time.Now().UnixNano())
