@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -52,18 +53,49 @@ func TestAPI(t *testing.T) {
 		"TaskDeleteHandler":  handlers.TaskDeleteHandler,
 		"LogoutHandler":      handlers.LogoutHandler,
 	}
-	for path, ops := range schema.Paths {
-		for mRaw, opRaw := range ops {
+	// Separate static and parameterized paths to register static first
+	staticPaths := []string{}
+	paramPaths := []string{}
+	for p := range schema.Paths {
+		if strings.Contains(p, "{") {
+			paramPaths = append(paramPaths, p)
+		} else {
+			staticPaths = append(staticPaths, p)
+		}
+	}
+	sort.Strings(staticPaths)
+	sort.Strings(paramPaths)
+	// Register static routes
+	for _, path := range staticPaths {
+		for mRaw, rawOp := range schema.Paths[path] {
 			method := strings.ToUpper(mRaw)
 			var opMap map[string]interface{}
-			json.Unmarshal(opRaw, &opMap)
+			json.Unmarshal(rawOp, &opMap)
 			opID, _ := opMap["operationId"].(string)
 			handler, ok := handlerRegistry[opID]
 			if !ok {
 				continue
 			}
 			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
-				// Don't require auth for login, register, or public tasks
+				if opID != "LoginHandler" && opID != "RegisterHandler" && opID != "PublicTasksHandler" {
+					handler = middleware.AuthMiddleware(handler)
+				}
+			}
+			router.HandleFunc(path, handler).Methods(method)
+		}
+	}
+	// Register parameterized routes
+	for _, path := range paramPaths {
+		for mRaw, rawOp := range schema.Paths[path] {
+			method := strings.ToUpper(mRaw)
+			var opMap map[string]interface{}
+			json.Unmarshal(rawOp, &opMap)
+			opID, _ := opMap["operationId"].(string)
+			handler, ok := handlerRegistry[opID]
+			if !ok {
+				continue
+			}
+			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
 				if opID != "LoginHandler" && opID != "RegisterHandler" && opID != "PublicTasksHandler" {
 					handler = middleware.AuthMiddleware(handler)
 				}

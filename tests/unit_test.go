@@ -3,6 +3,8 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,7 +20,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func TestHandlersSchemaDriven(t *testing.T) {
+// TestSchemaDrivenHandlers dynamically tests all endpoints defined in swagger.json
+func TestSchemaDrivenHandlers(t *testing.T) {
 	// Load Swagger JSON
 	data, err := os.ReadFile("../docs/swagger.json")
 	if err != nil {
@@ -31,11 +34,11 @@ func TestHandlersSchemaDriven(t *testing.T) {
 		t.Fatalf("invalid swagger JSON: %v", err)
 	}
 
-	// Initialize in-memory state
+	// Reset application state
 	models.Users = []models.User{}
 	models.Tasks = []models.Task{}
 
-	// Handler registry via operationId
+	// Register handlers by operationId
 	handlerRegistry := map[string]http.HandlerFunc{
 		"RegisterHandler":    handlers.RegisterHandler,
 		"LoginHandler":       handlers.LoginHandler,
@@ -48,9 +51,8 @@ func TestHandlersSchemaDriven(t *testing.T) {
 		"LogoutHandler":      handlers.LogoutHandler,
 	}
 
-	// Set up router and register static paths before parameterized to avoid conflicts
+	// Build router and register routes: static first, then parameterized
 	router := mux.NewRouter()
-	// collect static and param paths
 	staticPaths := []string{}
 	paramPaths := []string{}
 	for p := range swagger.Paths {
@@ -62,13 +64,14 @@ func TestHandlersSchemaDriven(t *testing.T) {
 	}
 	sort.Strings(staticPaths)
 	sort.Strings(paramPaths)
-	// register static routes first
+	// register static routes
 	for _, path := range staticPaths {
-		for mRaw, opRaw := range swagger.Paths[path] {
+		for mRaw, rawOp := range swagger.Paths[path] {
 			method := strings.ToUpper(mRaw)
 			var opMap map[string]interface{}
-			json.Unmarshal(opRaw, &opMap)
-			handler, ok := handlerRegistry[opMap["operationId"].(string)]
+			json.Unmarshal(rawOp, &opMap)
+			opID, _ := opMap["operationId"].(string)
+			handler, ok := handlerRegistry[opID]
 			if !ok {
 				continue
 			}
@@ -78,13 +81,14 @@ func TestHandlersSchemaDriven(t *testing.T) {
 			router.HandleFunc(path, handler).Methods(method)
 		}
 	}
-	// then parameterized routes
+	// register parameterized routes
 	for _, path := range paramPaths {
-		for mRaw, opRaw := range swagger.Paths[path] {
+		for mRaw, rawOp := range swagger.Paths[path] {
 			method := strings.ToUpper(mRaw)
 			var opMap map[string]interface{}
-			json.Unmarshal(opRaw, &opMap)
-			handler, ok := handlerRegistry[opMap["operationId"].(string)]
+			json.Unmarshal(rawOp, &opMap)
+			opID, _ := opMap["operationId"].(string)
+			handler, ok := handlerRegistry[opID]
 			if !ok {
 				continue
 			}
@@ -95,60 +99,82 @@ func TestHandlersSchemaDriven(t *testing.T) {
 		}
 	}
 
-	// Execute each operation against schema
+	// Iterate and test each endpoint
 	for path, ops := range swagger.Paths {
-		for mRaw, opRaw := range ops {
+		for mRaw, rawOp := range ops {
 			method := strings.ToUpper(mRaw)
 			var opMap map[string]interface{}
-			json.Unmarshal(opRaw, &opMap)
-			opID, _ := opMap["operationId"].(string)
-			// Build request URL, replace {id}
-			urlPath := strings.ReplaceAll(path, "{id}", "1")
-			var body bytes.Buffer
-			if params, ok := opMap["parameters"].([]interface{}); ok {
-				for _, pi := range params {
-					p, _ := pi.(map[string]interface{})
-					if p["in"] == "body" {
-						// empty JSON object
-						body.WriteString(`{}`)
+			json.Unmarshal(rawOp, &opMap)
+			t.Run(fmt.Sprintf("%s %s", method, path), func(t *testing.T) {
+				// Prepare request URL
+				urlPath := strings.ReplaceAll(path, "{id}", "1")
+				// Build request body if defined
+				var bodyBytes []byte
+				if params, ok := opMap["parameters"].([]interface{}); ok {
+					for _, pi := range params {
+						p, _ := pi.(map[string]interface{})
+						if p["in"] == "body" {
+							// default empty JSON object
+							bodyBytes = []byte(`{}`)
+							break
+						}
+					}
+				}
+				// Create request
+				var req *http.Request
+				if method == "POST" || method == "PUT" {
+					req = httptest.NewRequest(method, urlPath, bytes.NewReader(bodyBytes))
+					req.Header.Set("Content-Type", "application/json")
+				} else {
+					req = httptest.NewRequest(method, urlPath, nil)
+				}
+				// Add invalid auth for secured endpoints to test 401
+				if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
+					req.Header.Set("Authorization", "Bearer invalid")
+				}
+				// Execute
+				rr := httptest.NewRecorder()
+				router.ServeHTTP(rr, req)
+				resp := rr.Result()
+				defer resp.Body.Close()
+
+				// Read body
+				respBody, err := io.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("failed to read response: %v", err)
+				}
+				// Determine expected status codes
+				expected := []int{}
+				if responses, ok := opMap["responses"].(map[string]interface{}); ok {
+					for codeStr := range responses {
+						if code, err := strconv.Atoi(codeStr); err == nil {
+							expected = append(expected, code)
+						}
+					}
+				}
+				// allow 401 for secured
+				if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
+					expected = append(expected, http.StatusUnauthorized)
+				}
+				// Assert status
+				found := false
+				for _, c := range expected {
+					if resp.StatusCode == c {
+						found = true
 						break
 					}
 				}
-			}
-			req := httptest.NewRequest(method, urlPath, &body)
-			if body.Len() > 0 {
-				req.Header.Set("Content-Type", "application/json")
-			}
-			// Route through mux to apply middleware
-			rr := httptest.NewRecorder()
-			router.ServeHTTP(rr, req)
-
-			// Collect expected status codes
-			expected := []int{}
-			if responses, ok := opMap["responses"].(map[string]interface{}); ok {
-				for codeStr := range responses {
-					if code, err := strconv.Atoi(codeStr); err == nil {
-						expected = append(expected, code)
+				if !found {
+					t.Errorf("%s %s: expected one of %v, got %d", method, path, expected, resp.StatusCode)
+				}
+				// Basic JSON validation
+				if strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
+					var js interface{}
+					if err := json.Unmarshal(respBody, &js); err != nil {
+						t.Errorf("%s %s: invalid JSON: %v", method, path, err)
 					}
 				}
-			}
-			// Allow unauthorized where security defined
-			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
-				expected = append(expected, http.StatusUnauthorized)
-			}
-
-			// Assert
-			status := rr.Code
-			found := false
-			for _, c := range expected {
-				if status == c {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("%s %s -> %s: expected one of %v, got %d", mRaw, path, opID, expected, status)
-			}
+			})
 		}
 	}
 }
