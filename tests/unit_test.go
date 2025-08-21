@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -47,20 +48,46 @@ func TestHandlersSchemaDriven(t *testing.T) {
 		"LogoutHandler":      handlers.LogoutHandler,
 	}
 
-	// Set up router for path parameter resolution
+	// Set up router and register static paths before parameterized to avoid conflicts
 	router := mux.NewRouter()
-	for path, ops := range swagger.Paths {
-		for mRaw, opRaw := range ops {
+	// collect static and param paths
+	staticPaths := []string{}
+	paramPaths := []string{}
+	for p := range swagger.Paths {
+		if strings.Contains(p, "{") {
+			paramPaths = append(paramPaths, p)
+		} else {
+			staticPaths = append(staticPaths, p)
+		}
+	}
+	sort.Strings(staticPaths)
+	sort.Strings(paramPaths)
+	// register static routes first
+	for _, path := range staticPaths {
+		for mRaw, opRaw := range swagger.Paths[path] {
 			method := strings.ToUpper(mRaw)
-			// parse operation object
 			var opMap map[string]interface{}
 			json.Unmarshal(opRaw, &opMap)
-			opID, _ := opMap["operationId"].(string)
-			handler, ok := handlerRegistry[opID]
+			handler, ok := handlerRegistry[opMap["operationId"].(string)]
 			if !ok {
 				continue
 			}
-			// wrap auth if needed
+			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
+				handler = middleware.AuthMiddleware(handler)
+			}
+			router.HandleFunc(path, handler).Methods(method)
+		}
+	}
+	// then parameterized routes
+	for _, path := range paramPaths {
+		for mRaw, opRaw := range swagger.Paths[path] {
+			method := strings.ToUpper(mRaw)
+			var opMap map[string]interface{}
+			json.Unmarshal(opRaw, &opMap)
+			handler, ok := handlerRegistry[opMap["operationId"].(string)]
+			if !ok {
+				continue
+			}
 			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
 				handler = middleware.AuthMiddleware(handler)
 			}
