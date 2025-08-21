@@ -27,6 +27,7 @@ paths:
       consumes:
       - application/json
       description: Kullanıcı adı ve şifre ile giriş yapar
+      operationId: LoginHandler
       parameters:
       - description: Kullanıcı
         in: body
@@ -57,6 +58,7 @@ paths:
   /logout:
     post:
       description: Kullanıcıyı çıkış yaptırır
+      operationId: LogoutHandler
       produces:
       - application/json
       responses:
@@ -76,6 +78,7 @@ paths:
       consumes:
       - application/json
       description: Yeni kullanıcı oluşturur
+      operationId: RegisterHandler
       parameters:
       - description: Kullanıcı
         in: body
@@ -102,6 +105,7 @@ paths:
   /tasks:
     get:
       description: Sadece giriş yapan kullanıcının görevlerini döner
+      operationId: TasksListHandler
       produces:
       - application/json
       responses:
@@ -120,6 +124,7 @@ paths:
       consumes:
       - application/json
       description: Yeni görev oluşturur
+      operationId: TaskCreateHandler
       parameters:
       - description: Görev
         in: body
@@ -148,6 +153,7 @@ paths:
   /tasks/{id}:
     delete:
       description: Belirli bir görevi siler
+      operationId: TaskDeleteHandler
       parameters:
       - description: Görev ID
         in: path
@@ -172,6 +178,7 @@ paths:
       - Tasks
     get:
       description: Belirli bir görevin detayını döner
+      operationId: TaskDetailHandler
       parameters:
       - description: Görev ID
         in: path
@@ -200,6 +207,7 @@ paths:
       consumes:
       - application/json
       description: Belirli bir görevi günceller
+      operationId: TaskUpdateHandler
       parameters:
       - description: Görev ID
         in: path
@@ -233,6 +241,7 @@ paths:
   /tasks/public:
     get:
       description: Herkesin görebileceği görevleri döner
+      operationId: PublicTasksHandler
       produces:
       - application/json
       responses:

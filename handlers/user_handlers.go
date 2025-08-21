@@ -22,6 +22,7 @@ var jwtKey = []byte("gizliAnahtar")
 // @Success 201 {object} models.User
 // @Failure 400 {object} map[string]string
 // @Router /register [post]
+// @ID RegisterHandler
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -66,8 +67,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 // @Param user body models.User true "Kullanıcı"
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
-// @Security BearerAuth
 // @Router /login [post]
+// @ID LoginHandler
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var creds models.User
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -118,6 +119,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} map[string]string
 // @Security BearerAuth
 // @Router /logout [post]
+// @ID LogoutHandler
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message":"Çıkış başarılı. Token client tarafından silinmeli."}`))

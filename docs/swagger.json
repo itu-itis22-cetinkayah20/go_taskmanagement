@@ -22,6 +22,7 @@
                     "Auth"
                 ],
                 "summary": "Kullanıcı girişi",
+                "operationId": "LoginHandler",
                 "parameters": [
                     {
                         "description": "Kullanıcı",
@@ -70,6 +71,7 @@
                     "Auth"
                 ],
                 "summary": "Çıkış",
+                "operationId": "LogoutHandler",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -96,6 +98,7 @@
                     "Auth"
                 ],
                 "summary": "Kullanıcı kaydı",
+                "operationId": "RegisterHandler",
                 "parameters": [
                     {
                         "description": "Kullanıcı",
@@ -141,6 +144,7 @@
                     "Tasks"
                 ],
                 "summary": "Kullanıcı görevlerini listele",
+                "operationId": "TasksListHandler",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -170,6 +174,7 @@
                     "Tasks"
                 ],
                 "summary": "Görev ekle",
+                "operationId": "TaskCreateHandler",
                 "parameters": [
                     {
                         "description": "Görev",
@@ -210,6 +215,7 @@
                     "Tasks"
                 ],
                 "summary": "Public görevleri listele",
+                "operationId": "PublicTasksHandler",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -238,6 +244,7 @@
                     "Tasks"
                 ],
                 "summary": "Görev detayını görüntüle",
+                "operationId": "TaskDetailHandler",
                 "parameters": [
                     {
                         "type": "integer",
@@ -282,6 +289,7 @@
                     "Tasks"
                 ],
                 "summary": "Görev güncelle",
+                "operationId": "TaskUpdateHandler",
                 "parameters": [
                     {
                         "type": "integer",
@@ -329,6 +337,7 @@
                     "Tasks"
                 ],
                 "summary": "Görev sil",
+                "operationId": "TaskDeleteHandler",
                 "parameters": [
                     {
                         "type": "integer",

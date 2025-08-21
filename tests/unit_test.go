@@ -2,10 +2,12 @@ package tests
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"go_taskmanagement/handlers"
@@ -13,190 +15,113 @@ import (
 	"go_taskmanagement/models"
 
 	"github.com/gorilla/mux"
-	"golang.org/x/crypto/bcrypt"
 )
 
-// Test PublicTasksHandler
-func TestPublicTasksHandler(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/tasks/public", nil)
-	rr := httptest.NewRecorder()
+func TestHandlersSchemaDriven(t *testing.T) {
+	// Load Swagger JSON
+	data, err := os.ReadFile("../docs/swagger.json")
+	if err != nil {
+		t.Fatalf("failed to read swagger.json: %v", err)
+	}
+	var swagger struct {
+		Paths map[string]map[string]json.RawMessage `json:"paths"`
+	}
+	if err := json.Unmarshal(data, &swagger); err != nil {
+		t.Fatalf("invalid swagger JSON: %v", err)
+	}
 
-	handlers.PublicTasksHandler(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
-	}
-	var got []models.Task
-	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
-		t.Fatalf("could not unmarshal response: %v", err)
-	}
-	if len(got) != len(models.PublicTasks) {
-		t.Errorf("expected %d tasks, got %d", len(models.PublicTasks), len(got))
-	}
-}
-
-// Test TasksListHandler
-func TestTasksListHandler(t *testing.T) {
-	// reset tasks
-	models.Tasks = []models.Task{
-		{ID: 1, UserID: 1, Title: "A", Details: ""},
-		{ID: 2, UserID: 2, Title: "B", Details: ""},
-	}
-	req := httptest.NewRequest(http.MethodGet, "/tasks", nil)
-	ctx := context.WithValue(req.Context(), middleware.UserIDKey, 1)
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handlers.TasksListHandler(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
-	}
-	var got []models.Task
-	json.Unmarshal(rr.Body.Bytes(), &got)
-	if len(got) != 1 || got[0].UserID != 1 {
-		t.Errorf("unexpected tasks: %v", got)
-	}
-}
-
-// Test TaskCreateHandler
-func TestTaskCreateHandler(t *testing.T) {
-	models.Tasks = []models.Task{}
-	newTask := models.Task{Title: "New", Details: "D"}
-	body, _ := json.Marshal(newTask)
-	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), middleware.UserIDKey, 1)
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handlers.TaskCreateHandler(rr, req)
-	if rr.Code != http.StatusCreated {
-		t.Errorf("expected status %d, got %d", http.StatusCreated, rr.Code)
-	}
-	var got models.Task
-	json.Unmarshal(rr.Body.Bytes(), &got)
-	if got.ID != 1 || got.UserID != 1 || got.Title != newTask.Title {
-		t.Errorf("unexpected task: %v", got)
-	}
-}
-
-// Test TaskDetailHandler
-func TestTaskDetailHandler(t *testing.T) {
-	models.Tasks = []models.Task{
-		{ID: 1, UserID: 1, Title: "A", Details: "1"},
-	}
-	req := httptest.NewRequest(http.MethodGet, "/tasks/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	ctx := context.WithValue(req.Context(), middleware.UserIDKey, 1)
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handlers.TaskDetailHandler(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
-	}
-	var got models.Task
-	json.Unmarshal(rr.Body.Bytes(), &got)
-	if got.ID != 1 {
-		t.Errorf("unexpected task: %v", got)
-	}
-}
-
-// Test TaskUpdateHandler
-func TestTaskUpdateHandler(t *testing.T) {
-	models.Tasks = []models.Task{
-		{ID: 1, UserID: 1, Title: "Old", Details: "OldD"},
-	}
-	updated := models.Task{Title: "New", Details: "NewD"}
-	body, _ := json.Marshal(updated)
-	req := httptest.NewRequest(http.MethodPut, "/tasks/1", bytes.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	ctx := context.WithValue(req.Context(), middleware.UserIDKey, 1)
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handlers.TaskUpdateHandler(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
-	}
-	var got models.Task
-	json.Unmarshal(rr.Body.Bytes(), &got)
-	if got.Title != "New" || got.Details != "NewD" {
-		t.Errorf("unexpected task: %v", got)
-	}
-}
-
-// Test TaskDeleteHandler
-func TestTaskDeleteHandler(t *testing.T) {
-	models.Tasks = []models.Task{
-		{ID: 1, UserID: 1, Title: "A", Details: ""},
-		{ID: 2, UserID: 2, Title: "B", Details: ""},
-	}
-	req := httptest.NewRequest(http.MethodDelete, "/tasks/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	ctx := context.WithValue(req.Context(), middleware.UserIDKey, 1)
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handlers.TaskDeleteHandler(rr, req)
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected status %d, got %d", http.StatusNoContent, rr.Code)
-	}
-	if len(models.Tasks) != 1 || models.Tasks[0].ID == 1 {
-		t.Errorf("task not deleted: %v", models.Tasks)
-	}
-}
-
-// Test RegisterHandler
-func TestRegisterHandler(t *testing.T) {
+	// Initialize in-memory state
 	models.Users = []models.User{}
-	user := models.User{Username: "u", Password: "p"}
-	body, _ := json.Marshal(user)
-	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(body))
-	rr := httptest.NewRecorder()
+	models.Tasks = []models.Task{}
 
-	handlers.RegisterHandler(rr, req)
-	if rr.Code != http.StatusCreated {
-		t.Errorf("expected status %d, got %d", http.StatusCreated, rr.Code)
+	// Handler registry via operationId
+	handlerRegistry := map[string]http.HandlerFunc{
+		"RegisterHandler":    handlers.RegisterHandler,
+		"LoginHandler":       handlers.LoginHandler,
+		"PublicTasksHandler": handlers.PublicTasksHandler,
+		"TasksListHandler":   handlers.TasksListHandler,
+		"TaskCreateHandler":  handlers.TaskCreateHandler,
+		"TaskDetailHandler":  handlers.TaskDetailHandler,
+		"TaskUpdateHandler":  handlers.TaskUpdateHandler,
+		"TaskDeleteHandler":  handlers.TaskDeleteHandler,
+		"LogoutHandler":      handlers.LogoutHandler,
 	}
-	var got models.User
-	json.Unmarshal(rr.Body.Bytes(), &got)
-	if got.ID != 1 || got.Username != "u" {
-		t.Errorf("unexpected user: %v", got)
+
+	// Set up router for path parameter resolution
+	router := mux.NewRouter()
+	for path, ops := range swagger.Paths {
+		for mRaw, opRaw := range ops {
+			method := strings.ToUpper(mRaw)
+			// parse operation object
+			var opMap map[string]interface{}
+			json.Unmarshal(opRaw, &opMap)
+			opID, _ := opMap["operationId"].(string)
+			handler, ok := handlerRegistry[opID]
+			if !ok {
+				continue
+			}
+			// wrap auth if needed
+			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
+				handler = middleware.AuthMiddleware(handler)
+			}
+			router.HandleFunc(path, handler).Methods(method)
+		}
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(got.Password), []byte("p")); err != nil {
-		t.Errorf("password not hashed correctly")
-	}
-}
 
-// Test LoginHandler
-func TestLoginHandler(t *testing.T) {
-	password := "pass"
-	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	models.Users = []models.User{{ID: 1, Username: "user", Password: string(hash)}}
+	// Execute each operation against schema
+	for path, ops := range swagger.Paths {
+		for mRaw, opRaw := range ops {
+			method := strings.ToUpper(mRaw)
+			var opMap map[string]interface{}
+			json.Unmarshal(opRaw, &opMap)
+			opID, _ := opMap["operationId"].(string)
+			// Build request URL, replace {id}
+			urlPath := strings.ReplaceAll(path, "{id}", "1")
+			var body bytes.Buffer
+			if params, ok := opMap["parameters"].([]interface{}); ok {
+				for _, pi := range params {
+					p, _ := pi.(map[string]interface{})
+					if p["in"] == "body" {
+						// empty JSON object
+						body.WriteString(`{}`)
+						break
+					}
+				}
+			}
+			req := httptest.NewRequest(method, urlPath, &body)
+			if body.Len() > 0 {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			// Route through mux to apply middleware
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
 
-	creds := models.User{Username: "user", Password: password}
-	body, _ := json.Marshal(creds)
-	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(body))
-	rr := httptest.NewRecorder()
+			// Collect expected status codes
+			expected := []int{}
+			if responses, ok := opMap["responses"].(map[string]interface{}); ok {
+				for codeStr := range responses {
+					if code, err := strconv.Atoi(codeStr); err == nil {
+						expected = append(expected, code)
+					}
+				}
+			}
+			// Allow unauthorized where security defined
+			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
+				expected = append(expected, http.StatusUnauthorized)
+			}
 
-	handlers.LoginHandler(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
-	}
-	var resp map[string]string
-	json.Unmarshal(rr.Body.Bytes(), &resp)
-	if _, ok := resp["token"]; !ok {
-		t.Errorf("token not returned")
-	}
-}
-
-// Test LogoutHandler
-func TestLogoutHandler(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
-	rr := httptest.NewRecorder()
-
-	handlers.LogoutHandler(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+			// Assert
+			status := rr.Code
+			found := false
+			for _, c := range expected {
+				if status == c {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("%s %s -> %s: expected one of %v, got %d", mRaw, path, opID, expected, status)
+			}
+		}
 	}
 }

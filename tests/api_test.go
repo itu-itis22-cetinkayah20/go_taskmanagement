@@ -7,11 +7,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"go_taskmanagement/handlers"
 	"go_taskmanagement/middleware"
+	"go_taskmanagement/models"
 
 	"github.com/gorilla/mux"
 )
@@ -21,19 +24,53 @@ var testToken string
 var testTaskID int
 
 func TestAPI(t *testing.T) {
-	// Start test HTTP server
+	// Start test HTTP server dynamically from swagger schema
 	router := mux.NewRouter()
-	// Public endpoints
-	router.HandleFunc("/register", handlers.RegisterHandler).Methods("POST")
-	router.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
-	router.HandleFunc("/tasks/public", handlers.PublicTasksHandler).Methods("GET")
-	// Private endpoints
-	router.HandleFunc("/tasks", middleware.AuthMiddleware(handlers.TasksListHandler)).Methods("GET")
-	router.HandleFunc("/tasks", middleware.AuthMiddleware(handlers.TaskCreateHandler)).Methods("POST")
-	router.HandleFunc("/tasks/{id}", middleware.AuthMiddleware(handlers.TaskDetailHandler)).Methods("GET")
-	router.HandleFunc("/tasks/{id}", middleware.AuthMiddleware(handlers.TaskUpdateHandler)).Methods("PUT")
-	router.HandleFunc("/tasks/{id}", middleware.AuthMiddleware(handlers.TaskDeleteHandler)).Methods("DELETE")
-	router.HandleFunc("/logout", middleware.AuthMiddleware(handlers.LogoutHandler)).Methods("POST")
+	// Load Swagger JSON
+	data, err := os.ReadFile("../docs/swagger.json")
+	if err != nil {
+		t.Fatalf("failed to read swagger.json: %v", err)
+	}
+	var schema struct {
+		Paths map[string]map[string]json.RawMessage `json:"paths"`
+	}
+	if err := json.Unmarshal(data, &schema); err != nil {
+		t.Fatalf("invalid swagger JSON: %v", err)
+	}
+	// Reset in-memory data
+	models.Users = []models.User{}
+	models.Tasks = []models.Task{}
+	// Handler registry via operationId
+	handlerRegistry := map[string]http.HandlerFunc{
+		"RegisterHandler":    handlers.RegisterHandler,
+		"LoginHandler":       handlers.LoginHandler,
+		"PublicTasksHandler": handlers.PublicTasksHandler,
+		"TasksListHandler":   handlers.TasksListHandler,
+		"TaskCreateHandler":  handlers.TaskCreateHandler,
+		"TaskDetailHandler":  handlers.TaskDetailHandler,
+		"TaskUpdateHandler":  handlers.TaskUpdateHandler,
+		"TaskDeleteHandler":  handlers.TaskDeleteHandler,
+		"LogoutHandler":      handlers.LogoutHandler,
+	}
+	for path, ops := range schema.Paths {
+		for mRaw, opRaw := range ops {
+			method := strings.ToUpper(mRaw)
+			var opMap map[string]interface{}
+			json.Unmarshal(opRaw, &opMap)
+			opID, _ := opMap["operationId"].(string)
+			handler, ok := handlerRegistry[opID]
+			if !ok {
+				continue
+			}
+			if sec, ok := opMap["security"].([]interface{}); ok && len(sec) > 0 {
+				// Don't require auth for login, register, or public tasks
+				if opID != "LoginHandler" && opID != "RegisterHandler" && opID != "PublicTasksHandler" {
+					handler = middleware.AuthMiddleware(handler)
+				}
+			}
+			router.HandleFunc(path, handler).Methods(method)
+		}
+	}
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 	baseURL = srv.URL

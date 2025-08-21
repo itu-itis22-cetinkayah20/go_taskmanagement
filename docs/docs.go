@@ -33,6 +33,7 @@ const docTemplate = `{
                     "Auth"
                 ],
                 "summary": "Kullanıcı girişi",
+                "operationId": "LoginHandler",
                 "parameters": [
                     {
                         "description": "Kullanıcı",
@@ -81,6 +82,7 @@ const docTemplate = `{
                     "Auth"
                 ],
                 "summary": "Çıkış",
+                "operationId": "LogoutHandler",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -107,6 +109,7 @@ const docTemplate = `{
                     "Auth"
                 ],
                 "summary": "Kullanıcı kaydı",
+                "operationId": "RegisterHandler",
                 "parameters": [
                     {
                         "description": "Kullanıcı",
@@ -152,6 +155,7 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "Kullanıcı görevlerini listele",
+                "operationId": "TasksListHandler",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -181,6 +185,7 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "Görev ekle",
+                "operationId": "TaskCreateHandler",
                 "parameters": [
                     {
                         "description": "Görev",
@@ -221,6 +226,7 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "Public görevleri listele",
+                "operationId": "PublicTasksHandler",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -249,6 +255,7 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "Görev detayını görüntüle",
+                "operationId": "TaskDetailHandler",
                 "parameters": [
                     {
                         "type": "integer",
@@ -293,6 +300,7 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "Görev güncelle",
+                "operationId": "TaskUpdateHandler",
                 "parameters": [
                     {
                         "type": "integer",
@@ -340,6 +348,7 @@ const docTemplate = `{
                     "Tasks"
                 ],
                 "summary": "Görev sil",
+                "operationId": "TaskDeleteHandler",
                 "parameters": [
                     {
                         "type": "integer",

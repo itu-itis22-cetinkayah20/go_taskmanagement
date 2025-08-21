@@ -11,6 +11,7 @@ import (
 )
 
 // PublicTasksHandler herkese açık görevleri listeler
+// @ID PublicTasksHandler
 // @Summary Public görevleri listele
 // @Description Herkesin görebileceği görevleri döner
 // @Tags Tasks
@@ -23,6 +24,7 @@ func PublicTasksHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // TasksListHandler kullanıcının kendi görevlerini listeler
+// @ID TasksListHandler
 // @Summary Kullanıcı görevlerini listele
 // @Description Sadece giriş yapan kullanıcının görevlerini döner
 // @Tags Tasks
@@ -48,6 +50,7 @@ func TasksListHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // TaskCreateHandler yeni görev ekler
+// @ID TaskCreateHandler
 // @Summary Görev ekle
 // @Description Yeni görev oluşturur
 // @Tags Tasks
@@ -85,6 +88,7 @@ func TaskCreateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // TaskDetailHandler görev detayını döner
+// @ID TaskDetailHandler
 // @Summary Görev detayını görüntüle
 // @Description Belirli bir görevin detayını döner
 // @Tags Tasks
@@ -121,6 +125,7 @@ func TaskDetailHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // TaskUpdateHandler görevi günceller
+// @ID TaskUpdateHandler
 // @Summary Görev güncelle
 // @Description Belirli bir görevi günceller
 // @Tags Tasks
@@ -167,6 +172,7 @@ func TaskUpdateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // TaskDeleteHandler görevi siler
+// @ID TaskDeleteHandler
 // @Summary Görev sil
 // @Description Belirli bir görevi siler
 // @Tags Tasks
