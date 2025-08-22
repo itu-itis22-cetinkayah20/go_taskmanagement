@@ -1,13 +1,10 @@
 package handlers
 
 import (
-	"encoding/json"
-	"go_taskmanagement/middleware"
 	"go_taskmanagement/models"
-	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
 )
 
 // PublicTasksHandler herkese açık görevleri listeler
@@ -18,9 +15,8 @@ import (
 // @Produce json
 // @Success 200 {array} models.Task
 // @Router /tasks/public [get]
-func PublicTasksHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.PublicTasks)
+func PublicTasksHandler(c *fiber.Ctx) error {
+	return c.JSON(models.PublicTasks)
 }
 
 // TasksListHandler kullanıcının kendi görevlerini listeler
@@ -32,12 +28,11 @@ func PublicTasksHandler(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Success 200 {array} models.Task
 // @Router /tasks [get]
-func TasksListHandler(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+func TasksListHandler(c *fiber.Ctx) error {
+	uid := c.Locals("user_id")
+	userID, ok := uid.(int)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"Kullanıcı bilgisi alınamadı"}`))
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
 	var userTasks []models.Task
 	for _, t := range models.Tasks {
@@ -45,8 +40,7 @@ func TasksListHandler(w http.ResponseWriter, r *http.Request) {
 			userTasks = append(userTasks, t)
 		}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(userTasks)
+	return c.JSON(userTasks)
 }
 
 // TaskCreateHandler yeni görev ekler
@@ -61,30 +55,23 @@ func TasksListHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 201 {object} models.Task
 // @Failure 400 {object} map[string]string
 // @Router /tasks [post]
-func TaskCreateHandler(w http.ResponseWriter, r *http.Request) {
+func TaskCreateHandler(c *fiber.Ctx) error {
 	var task models.Task
-	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Geçersiz veri"}`))
-		return
+	if err := c.BodyParser(&task); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz veri"})
 	}
 	if task.Title == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Başlık zorunlu"}`))
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Başlık zorunlu"})
 	}
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	uid := c.Locals("user_id")
+	userID, ok := uid.(int)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"Kullanıcı bilgisi alınamadı"}`))
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
 	task.ID = len(models.Tasks) + 1
 	task.UserID = userID
 	models.Tasks = append(models.Tasks, task)
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
+	return c.Status(fiber.StatusCreated).JSON(task)
 }
 
 // TaskDetailHandler görev detayını döner
@@ -98,30 +85,23 @@ func TaskCreateHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} models.Task
 // @Failure 404 {object} map[string]string
 // @Router /tasks/{id} [get]
-func TaskDetailHandler(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+func TaskDetailHandler(c *fiber.Ctx) error {
+	uid := c.Locals("user_id")
+	userID, ok := uid.(int)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"Kullanıcı bilgisi alınamadı"}`))
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
-	vars := mux.Vars(r)
-	idStr := vars["id"]
+	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Geçersiz görev ID"}`))
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz görev ID"})
 	}
 	for _, t := range models.Tasks {
 		if t.ID == id && t.UserID == userID {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(t)
-			return
+			return c.JSON(t)
 		}
 	}
-	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte(`{"error":"Görev bulunamadı veya yetkiniz yok"}`))
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 }
 
 // TaskUpdateHandler görevi günceller
@@ -137,38 +117,29 @@ func TaskDetailHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} models.Task
 // @Failure 404 {object} map[string]string
 // @Router /tasks/{id} [put]
-func TaskUpdateHandler(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+func TaskUpdateHandler(c *fiber.Ctx) error {
+	uid := c.Locals("user_id")
+	userID, ok := uid.(int)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"Kullanıcı bilgisi alınamadı"}`))
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
-	vars := mux.Vars(r)
-	idStr := vars["id"]
+	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Geçersiz görev ID"}`))
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz görev ID"})
 	}
 	var updated models.Task
-	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Geçersiz veri"}`))
-		return
+	if err := c.BodyParser(&updated); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz veri"})
 	}
 	for i, t := range models.Tasks {
 		if t.ID == id && t.UserID == userID {
 			models.Tasks[i].Title = updated.Title
 			models.Tasks[i].Details = updated.Details
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(models.Tasks[i])
-			return
+			return c.JSON(models.Tasks[i])
 		}
 	}
-	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte(`{"error":"Görev bulunamadı veya yetkiniz yok"}`))
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 }
 
 // TaskDeleteHandler görevi siler
@@ -181,28 +152,22 @@ func TaskUpdateHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 204 {string} string ""
 // @Failure 404 {object} map[string]string
 // @Router /tasks/{id} [delete]
-func TaskDeleteHandler(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+func TaskDeleteHandler(c *fiber.Ctx) error {
+	uid := c.Locals("user_id")
+	userID, ok := uid.(int)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"Kullanıcı bilgisi alınamadı"}`))
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
-	vars := mux.Vars(r)
-	idStr := vars["id"]
+	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Geçersiz görev ID"}`))
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz görev ID"})
 	}
 	for i, t := range models.Tasks {
 		if t.ID == id && t.UserID == userID {
 			models.Tasks = append(models.Tasks[:i], models.Tasks[i+1:]...)
-			w.WriteHeader(http.StatusNoContent)
-			return
+			return c.SendStatus(fiber.StatusNoContent)
 		}
 	}
-	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte(`{"error":"Görev bulunamadı veya yetkiniz yok"}`))
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 }

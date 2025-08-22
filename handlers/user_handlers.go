@@ -1,11 +1,10 @@
 package handlers
 
 import (
-	"encoding/json"
 	"go_taskmanagement/models"
-	"net/http"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -23,39 +22,29 @@ var jwtKey = []byte("gizliAnahtar")
 // @Failure 400 {object} map[string]string
 // @Router /register [post]
 // @ID RegisterHandler
-func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+func RegisterHandler(c *fiber.Ctx) error {
 	var user models.User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Geçersiz veri"}`))
-		return
+	if err := c.BodyParser(&user); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz veri"})
 	}
 	if user.Username == "" || user.Password == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Kullanıcı adı ve şifre zorunlu"}`))
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Kullanıcı adı ve şifre zorunlu"})
 	}
 	// Kullanıcı adı benzersiz mi kontrolü
 	for _, u := range models.Users {
 		if u.Username == user.Username {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(`{"error":"Kullanıcı adı zaten mevcut"}`))
-			return
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Kullanıcı adı zaten mevcut"})
 		}
 	}
 	// Şifreyi hashle
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"Şifre hashlenemedi"}`))
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Şifre hashlenemedi"})
 	}
 	user.Password = string(hash)
 	user.ID = len(models.Users) + 1
 	models.Users = append(models.Users, user)
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	return c.Status(fiber.StatusCreated).JSON(user)
 }
 
 // LoginHandler kullanıcı girişi yapar ve JWT token döner
@@ -69,12 +58,10 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Router /login [post]
 // @ID LoginHandler
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
+func LoginHandler(c *fiber.Ctx) error {
 	var creds models.User
-	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"Geçersiz veri"}`))
-		return
+	if err := c.BodyParser(&creds); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz veri"})
 	}
 	var user models.User
 	found := false
@@ -86,14 +73,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !found {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"Kullanıcı adı veya şifre yanlış"}`))
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı adı veya şifre yanlış"})
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"Kullanıcı adı veya şifre yanlış"}`))
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı adı veya şifre yanlış"})
 	}
 	claims := jwt.MapClaims{
 		"user_id":  user.ID,
@@ -103,12 +86,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"Token oluşturulamadı"}`))
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Token oluşturulamadı"})
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+	return c.JSON(fiber.Map{"token": tokenString})
 }
 
 // LogoutHandler kullanıcıyı çıkış yaptırır
@@ -120,7 +100,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /logout [post]
 // @ID LogoutHandler
-func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message":"Çıkış başarılı. Token client tarafından silinmeli."}`))
+func LogoutHandler(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{"message": "Çıkış başarılı. Token client tarafından silinmeli."})
 }

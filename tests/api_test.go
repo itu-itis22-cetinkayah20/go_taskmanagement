@@ -16,7 +16,7 @@ import (
 	"go_taskmanagement/middleware"
 	"go_taskmanagement/models"
 
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
 )
 
 func TestSchemaDrivenAPI(t *testing.T) {
@@ -39,8 +39,8 @@ func TestSchemaDrivenAPI(t *testing.T) {
 	// 3) otomatik handler registry (operationId eşlemesi)
 	handlerRegistry := handlers.OperationRegistry
 
-	// 4) Router’ı schema’dan dinamik doldur
-	router := mux.NewRouter()
+	// 4) Fiber app oluşturup schema’dan dinamik doldur
+	app := fiber.New()
 	static, param := []string{}, []string{}
 	for p := range spec.Paths {
 		if strings.Contains(p, "{") {
@@ -61,11 +61,14 @@ func TestSchemaDrivenAPI(t *testing.T) {
 			if !ok {
 				continue
 			}
+			// fiber path (convert {id} to :id)
+			fp := strings.ReplaceAll(strings.ReplaceAll(path, "{", ":"), "}", "")
 			// güvenli route’ları sar
 			if sec, _ := op["security"].([]interface{}); len(sec) > 0 {
-				h = middleware.AuthMiddleware(h)
+				app.Add(method, fp, middleware.AuthMiddleware, h)
+			} else {
+				app.Add(method, fp, h)
 			}
-			router.HandleFunc(path, h).Methods(method)
 		}
 	}
 	for _, p := range static {
@@ -75,9 +78,7 @@ func TestSchemaDrivenAPI(t *testing.T) {
 		register(p)
 	}
 
-	// 5) Test sunucusunu ayağa kaldır
-	srv := httptest.NewServer(router)
-	defer srv.Close()
+	// test için Fiber app hazır
 
 	// 6) Tüm yollar + metod kombinasyonlarını test et
 	for path, ops := range spec.Paths {
@@ -86,7 +87,7 @@ func TestSchemaDrivenAPI(t *testing.T) {
 			// alt test
 			t.Run(method+" "+path, func(t *testing.T) {
 				// a) URL’i hazırla
-				url := srv.URL + strings.ReplaceAll(path, "{id}", "1")
+				url := strings.ReplaceAll(path, "{id}", "1")
 
 				// b) Body gerekirse {} at
 				var body io.Reader
@@ -101,19 +102,18 @@ func TestSchemaDrivenAPI(t *testing.T) {
 				if body != nil {
 					req.Header.Set("Content-Type", "application/json")
 				}
-				// opMap is already unmarshaled above
+				// isteği Fiber app üzerinde çalıştır
+				resp, err := app.Test(req, 1000)
+				if err != nil {
+					t.Fatalf("request failed: %v", err)
+				}
+				// unauthorized kontrolü
 				if sec, _ := opMap["security"].([]interface{}); len(sec) > 0 {
-					rr := httptest.NewRecorder()
-					router.ServeHTTP(rr, req)
-					if rr.Code != http.StatusUnauthorized {
-						t.Errorf("expected 401 for %s %s, got %d", method, path, rr.Code)
+					if resp.StatusCode != http.StatusUnauthorized {
+						t.Errorf("expected 401 for %s %s, got %d", method, path, resp.StatusCode)
 					}
 					return
 				}
-
-				// d) Yetkisiz değilse doğrudan çalıştır ve kodu validate et
-				rr := httptest.NewRecorder()
-				router.ServeHTTP(rr, req)
 
 				// spec’deki response kodlarıyla karşılaştır
 				expected := map[int]struct{}{}
@@ -124,9 +124,9 @@ func TestSchemaDrivenAPI(t *testing.T) {
 						}
 					}
 				}
-				if _, ok := expected[rr.Code]; !ok {
+				if _, ok := expected[resp.StatusCode]; !ok {
 					t.Errorf("%s %s: expected one of %v, got %d",
-						method, path, keys(expected), rr.Code)
+						method, path, keys(expected), resp.StatusCode)
 				}
 			})
 		}
