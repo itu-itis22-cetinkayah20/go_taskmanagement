@@ -36,18 +36,8 @@ func TestSchemaDrivenAPI(t *testing.T) {
 	models.Users = []models.User{}
 	models.Tasks = []models.Task{}
 
-	// 3) Handler’ları operationId ile eşleyecek registry
-	handlerRegistry := map[string]http.HandlerFunc{
-		"RegisterHandler":    handlers.RegisterHandler,
-		"LoginHandler":       handlers.LoginHandler,
-		"PublicTasksHandler": handlers.PublicTasksHandler,
-		"TasksListHandler":   handlers.TasksListHandler,
-		"TaskCreateHandler":  handlers.TaskCreateHandler,
-		"TaskDetailHandler":  handlers.TaskDetailHandler,
-		"TaskUpdateHandler":  handlers.TaskUpdateHandler,
-		"TaskDeleteHandler":  handlers.TaskDeleteHandler,
-		"LogoutHandler":      handlers.LogoutHandler,
-	}
+	// 3) otomatik handler registry (operationId eşlemesi)
+	handlerRegistry := handlers.OperationRegistry
 
 	// 4) Router’ı schema’dan dinamik doldur
 	router := mux.NewRouter()

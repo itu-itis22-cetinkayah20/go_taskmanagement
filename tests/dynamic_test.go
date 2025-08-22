@@ -38,18 +38,8 @@ func TestDynamicEndpoints(t *testing.T) {
 	// Load OpenAPI schema for response validation
 	// Start test server: register routes by operationId from schema
 	router := mux.NewRouter()
-	// handler registry maps operationId to functions
-	handlerRegistry := map[string]http.HandlerFunc{
-		"RegisterHandler":    handlers.RegisterHandler,
-		"LoginHandler":       handlers.LoginHandler,
-		"PublicTasksHandler": handlers.PublicTasksHandler,
-		"TasksListHandler":   handlers.TasksListHandler,
-		"TaskCreateHandler":  handlers.TaskCreateHandler,
-		"TaskDetailHandler":  handlers.TaskDetailHandler,
-		"TaskUpdateHandler":  handlers.TaskUpdateHandler,
-		"TaskDeleteHandler":  handlers.TaskDeleteHandler,
-		"LogoutHandler":      handlers.LogoutHandler,
-	}
+	// use auto-generated registry from handlers
+	handlerRegistry := handlers.OperationRegistry
 	for path, ops := range swagger.Paths {
 		for mRaw, opObj := range ops {
 			method := strings.ToUpper(mRaw)

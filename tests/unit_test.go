@@ -38,18 +38,8 @@ func TestSchemaDrivenHandlers(t *testing.T) {
 	models.Users = []models.User{}
 	models.Tasks = []models.Task{}
 
-	// Register handlers by operationId
-	handlerRegistry := map[string]http.HandlerFunc{
-		"RegisterHandler":    handlers.RegisterHandler,
-		"LoginHandler":       handlers.LoginHandler,
-		"PublicTasksHandler": handlers.PublicTasksHandler,
-		"TasksListHandler":   handlers.TasksListHandler,
-		"TaskCreateHandler":  handlers.TaskCreateHandler,
-		"TaskDetailHandler":  handlers.TaskDetailHandler,
-		"TaskUpdateHandler":  handlers.TaskUpdateHandler,
-		"TaskDeleteHandler":  handlers.TaskDeleteHandler,
-		"LogoutHandler":      handlers.LogoutHandler,
-	}
+	// Automated handler registry from handlers.OperationRegistry
+	handlerRegistry := handlers.OperationRegistry
 
 	// Build router and register routes: static first, then parameterized
 	router := mux.NewRouter()
