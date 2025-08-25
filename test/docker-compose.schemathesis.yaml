@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    command: ./your-binary serve --port 8080
+    environment:
+      - ENV=testing
+    ports:
+      - "8080:8080"
+
+  schemathesis:
+    image: schemathesis/schemathesis:stable
+    depends_on:
+      - api
+    environment:
+      - TOKEN=${TOKEN:-}
+    volumes:
+      - ./test/testdata:/spec:ro
+    command: >
+      run /spec/openapi.yaml
+      --base-url http://api:8080
+      --checks all
+      --stateful=links
+      --rate-limit=50
+      --hypothesis-deadline=200
+      ${TOKEN:+--auth "Bearer $TOKEN"}
