@@ -33,18 +33,25 @@ func LoadSpec(ctx context.Context, path string) (*openapi3.T, error) {
 }
 
 func SpecPath() string {
+	// Get current working directory
+	wd, _ := os.Getwd()
+
 	// Allow override in CI via SPEC_PATH environment variable
 	if p := os.Getenv("SPEC_PATH"); p != "" {
-		// Check if the environment path exists
+		// If the path exists as-is, use it
 		if _, err := os.Stat(p); err == nil {
-			fmt.Printf("Found OpenAPI spec via SPEC_PATH: %s\n", p)
 			return p
 		}
-		fmt.Printf("SPEC_PATH set but file not found: %s\n", p)
-	}
 
-	// Get current working directory for debugging
-	wd, _ := os.Getwd()
+		// If we're in test/contract directory, adjust the path to be relative to project root
+		if filepath.Base(wd) == "contract" && filepath.Base(filepath.Dir(wd)) == "test" {
+			// We're in test/contract, so go up two levels and then apply the SPEC_PATH
+			adjustedPath := filepath.Join("..", "..", p)
+			if _, err := os.Stat(adjustedPath); err == nil {
+				return adjustedPath
+			}
+		}
+	}
 
 	// Try relative paths from different working directories
 	candidates := []string{
@@ -59,18 +66,8 @@ func SpecPath() string {
 
 	for _, candidate := range candidates {
 		if _, err := os.Stat(candidate); err == nil {
-			absPath, _ := filepath.Abs(candidate)
-			fmt.Printf("Found OpenAPI spec at: %s\n", absPath)
 			return candidate
 		}
-	}
-
-	// Debug: print current working directory and what we tried
-	fmt.Printf("Current working directory: %s\n", wd)
-	fmt.Println("Tried the following paths:")
-	for _, candidate := range candidates {
-		absPath, _ := filepath.Abs(candidate)
-		fmt.Printf("  - %s (absolute: %s)\n", candidate, absPath)
 	}
 
 	// Default fallback - prefer the path from test/contract directory
