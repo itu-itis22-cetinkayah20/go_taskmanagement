@@ -35,7 +35,12 @@ func LoadSpec(ctx context.Context, path string) (*openapi3.T, error) {
 func SpecPath() string {
 	// Allow override in CI via SPEC_PATH environment variable
 	if p := os.Getenv("SPEC_PATH"); p != "" {
-		return p
+		// Check if the environment path exists
+		if _, err := os.Stat(p); err == nil {
+			fmt.Printf("Found OpenAPI spec via SPEC_PATH: %s\n", p)
+			return p
+		}
+		fmt.Printf("SPEC_PATH set but file not found: %s\n", p)
 	}
 
 	// Get current working directory for debugging
@@ -43,16 +48,13 @@ func SpecPath() string {
 
 	// Try relative paths from different working directories
 	candidates := []string{
-		// From test/contract directory
+		// From test/contract directory (when running locally)
 		filepath.Join("..", "testdata", "openapi.yaml"),
-		// From project root
+		// From project root (when running in CI)
 		filepath.Join("test", "testdata", "openapi.yaml"),
-		// From any subdirectory - go up and find it
+		// Fallback paths
 		filepath.Join("..", "..", "test", "testdata", "openapi.yaml"),
-		// Absolute path based on current working directory
-		filepath.Join(wd, "test", "testdata", "openapi.yaml"),
-		// If running from test directory
-		filepath.Join(wd, "testdata", "openapi.yaml"),
+		filepath.Join("testdata", "openapi.yaml"),
 	}
 
 	for _, candidate := range candidates {
@@ -67,11 +69,12 @@ func SpecPath() string {
 	fmt.Printf("Current working directory: %s\n", wd)
 	fmt.Println("Tried the following paths:")
 	for _, candidate := range candidates {
-		fmt.Printf("  - %s\n", candidate)
+		absPath, _ := filepath.Abs(candidate)
+		fmt.Printf("  - %s (absolute: %s)\n", candidate, absPath)
 	}
 
-	// Default fallback
-	return filepath.Join("test", "testdata", "openapi.yaml")
+	// Default fallback - prefer the path from test/contract directory
+	return filepath.Join("..", "testdata", "openapi.yaml")
 }
 
 // Helper function to get absolute spec path for debugging

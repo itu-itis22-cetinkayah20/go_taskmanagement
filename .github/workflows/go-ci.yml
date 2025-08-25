@@ -40,16 +40,17 @@ jobs:
         run: |
           if [ ! -f "test/testdata/openapi.yaml" ]; then
             echo "OpenAPI spec not found at test/testdata/openapi.yaml"
+            ls -la test/testdata/ || echo "testdata directory not found"
             exit 1
           fi
           echo "OpenAPI spec found at test/testdata/openapi.yaml"
         timeout-minutes: 1
 
-      - name: Run unit tests
-        run: go test ./... -v -timeout=30s
+      - name: Run unit tests (excluding contract tests)
+        run: go test $(go list ./... | grep -v '/test/') -v -timeout=30s
         timeout-minutes: 5
 
-      - name: Run contract tests
+      - name: Run contract tests from project root
         run: go test ./test/contract -v -timeout=30s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
@@ -75,6 +76,8 @@ jobs:
 
       - name: Test basic endpoints
         run: go test ./test/contract -run TestBasicEndpoints -v -timeout=30s
+        env:
+          SPEC_PATH: test/testdata/openapi.yaml
         timeout-minutes: 3
 
       - name: Generate test report
