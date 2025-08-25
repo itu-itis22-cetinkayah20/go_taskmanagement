@@ -11,6 +11,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -33,6 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: go mod download
+        timeout-minutes: 5
 
       - name: Verify OpenAPI spec exists
         run: |
@@ -41,32 +43,39 @@ jobs:
             exit 1
           fi
           echo "OpenAPI spec found at test/testdata/openapi.yaml"
+        timeout-minutes: 1
 
       - name: Run unit tests
-        run: go test ./... -v
+        run: go test ./... -v -timeout=30s
+        timeout-minutes: 5
 
       - name: Run contract tests
-        run: go test ./test/contract -v
+        run: go test ./test/contract -v -timeout=30s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+        timeout-minutes: 5
 
       - name: Run contract tests with auth flow
-        run: go test ./test/contract -run Test_OpenAPI_Contract_AuthFlow -v
+        run: go test ./test/contract -run Test_OpenAPI_Contract_AuthFlow -v -timeout=30s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+        timeout-minutes: 3
 
       - name: Run dynamic OpenAPI contract tests
-        run: go test ./test/contract -run Test_OpenAPI_Contract -v
+        run: go test ./test/contract -run Test_OpenAPI_Contract -v -timeout=30s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+        timeout-minutes: 5
 
       - name: Validate OpenAPI specification
-        run: go test ./test/contract -run TestOpenAPISpecLoading -v
+        run: go test ./test/contract -run TestOpenAPISpecLoading -v -timeout=30s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+        timeout-minutes: 2
 
       - name: Test basic endpoints
-        run: go test ./test/contract -run TestBasicEndpoints -v
+        run: go test ./test/contract -run TestBasicEndpoints -v -timeout=30s
+        timeout-minutes: 3
 
       - name: Generate test report
         if: always()
@@ -78,3 +87,4 @@ jobs:
           echo "✅ OpenAPI Dynamic Tests: Completed"
           echo "✅ Spec Validation: Completed"
           echo "✅ Basic Endpoint Tests: Completed"
+        timeout-minutes: 1
