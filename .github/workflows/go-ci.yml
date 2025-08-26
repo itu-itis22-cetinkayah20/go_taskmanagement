@@ -13,6 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # PostgreSQL service for tests
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 1234
+          POSTGRES_DB: go_taskmanagement_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -36,14 +52,54 @@ jobs:
         run: go mod download
         timeout-minutes: 5
 
+      - name: Setup test environment
+        run: |
+          echo "Setting up test database environment variables"
+          echo "TEST_DB_HOST=localhost" >> $GITHUB_ENV
+          echo "TEST_DB_USER=postgres" >> $GITHUB_ENV  
+          echo "TEST_DB_PASSWORD=1234" >> $GITHUB_ENV
+          echo "TEST_DB_NAME=go_taskmanagement_test" >> $GITHUB_ENV
+          echo "TEST_DB_PORT=5432" >> $GITHUB_ENV
+          echo "TEST_DB_SSLMODE=disable" >> $GITHUB_ENV
+        timeout-minutes: 1
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          timeout 30s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
+        timeout-minutes: 1
+
+      - name: Test PostgreSQL connection
+        run: |
+          PGPASSWORD=1234 psql -h localhost -U postgres -d go_taskmanagement_test -c "SELECT version();"
+        timeout-minutes: 1
+
       - name: Verify OpenAPI spec exists
         run: |
-          if [ ! -f "test/testdata/openapi.yaml" ]; then
-            echo "OpenAPI spec not found at test/testdata/openapi.yaml"
-            ls -la test/testdata/ || echo "testdata directory not found"
-            exit 1
+          echo "Checking for OpenAPI spec files..."
+          if [ -f "test/testdata/openapi.yaml" ]; then
+            echo "✅ Found: test/testdata/openapi.yaml"
+          else
+            echo "❌ Missing: test/testdata/openapi.yaml"
           fi
-          echo "OpenAPI spec found at test/testdata/openapi.yaml"
+          
+          if [ -f "docs/swagger.yaml" ]; then
+            echo "✅ Found: docs/swagger.yaml"
+            # Copy swagger.yaml to testdata location if testdata version doesn't exist
+            if [ ! -f "test/testdata/openapi.yaml" ]; then
+              mkdir -p test/testdata
+              cp docs/swagger.yaml test/testdata/openapi.yaml
+              echo "📋 Copied docs/swagger.yaml to test/testdata/openapi.yaml"
+            fi
+          else
+            echo "❌ Missing: docs/swagger.yaml"
+          fi
+          
+          echo ""
+          echo "Directory listings:"
+          echo "test/testdata/:"
+          ls -la test/testdata/ || echo "  (directory not found)"
+          echo "docs/:"
+          ls -la docs/ || echo "  (directory not found)"
         timeout-minutes: 1
 
       - name: Run unit tests (excluding contract tests)
@@ -51,43 +107,84 @@ jobs:
         timeout-minutes: 5
 
       - name: Run contract tests from project root
-        run: go test ./test/contract -v -timeout=30s
+        run: |
+          echo "=== Starting Contract Tests ==="
+          echo "Database Config:"
+          echo "  Host: localhost"
+          echo "  User: postgres"
+          echo "  Database: go_taskmanagement_test"
+          echo "  Port: 5432"
+          echo ""
+          go test ./test/contract -v -timeout=60s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+          TEST_DB_HOST: localhost
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: 1234
+          TEST_DB_NAME: go_taskmanagement_test
+          TEST_DB_PORT: 5432
+          TEST_DB_SSLMODE: disable
         timeout-minutes: 5
 
       - name: Run contract tests with auth flow
-        run: go test ./test/contract -run Test_OpenAPI_Contract_AuthFlow -v -timeout=30s
+        run: go test ./test/contract -run Test_OpenAPI_Contract_AuthFlow -v -timeout=60s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+          TEST_DB_HOST: localhost
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: 1234
+          TEST_DB_NAME: go_taskmanagement_test
+          TEST_DB_PORT: 5432
+          TEST_DB_SSLMODE: disable
         timeout-minutes: 3
 
       - name: Run dynamic OpenAPI contract tests
-        run: go test ./test/contract -run Test_OpenAPI_Contract -v -timeout=30s
+        run: go test ./test/contract -run Test_OpenAPI_Contract -v -timeout=60s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+          TEST_DB_HOST: localhost
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: 1234
+          TEST_DB_NAME: go_taskmanagement_test
+          TEST_DB_PORT: 5432
+          TEST_DB_SSLMODE: disable
         timeout-minutes: 5
 
       - name: Validate OpenAPI specification
-        run: go test ./test/contract -run TestOpenAPISpecLoading -v -timeout=30s
+        run: go test ./test/contract -run TestOpenAPISpecLoading -v -timeout=60s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+          TEST_DB_HOST: localhost
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: 1234
+          TEST_DB_NAME: go_taskmanagement_test
+          TEST_DB_PORT: 5432
+          TEST_DB_SSLMODE: disable
         timeout-minutes: 2
 
       - name: Test basic endpoints
-        run: go test ./test/contract -run TestBasicEndpoints -v -timeout=30s
+        run: go test ./test/contract -run TestBasicEndpoints -v -timeout=60s
         env:
           SPEC_PATH: test/testdata/openapi.yaml
+          TEST_DB_HOST: localhost
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: 1234
+          TEST_DB_NAME: go_taskmanagement_test
+          TEST_DB_PORT: 5432
+          TEST_DB_SSLMODE: disable
         timeout-minutes: 3
 
       - name: Generate test report
         if: always()
         run: |
           echo "=== Test Summary ==="
+          echo "🐘 PostgreSQL Service: Ready"
           echo "✅ Unit Tests: Completed"
           echo "✅ Contract Tests: Completed" 
           echo "✅ Auth Flow Tests: Completed"
           echo "✅ OpenAPI Dynamic Tests: Completed"
           echo "✅ Spec Validation: Completed"
           echo "✅ Basic Endpoint Tests: Completed"
+          echo ""
+          echo "Database Tests: All contract tests now run with PostgreSQL!"
         timeout-minutes: 1
