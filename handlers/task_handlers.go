@@ -18,7 +18,7 @@ import (
 // @Success 200 {array} models.Task
 // @Router /tasks/public [get]
 func PublicTasksHandler(c *fiber.Ctx) error {
-	if database.IsConnected {
+	if database.IsConnected && database.DB != nil {
 		var publicTasks []models.Task
 		database.DB.Preload("User").Where("user_id = ?", 0).Find(&publicTasks)
 		return c.JSON(publicTasks)
@@ -44,7 +44,7 @@ func TasksListHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
 
-	if database.IsConnected {
+	if database.IsConnected && database.DB != nil {
 		var userTasks []models.Task
 		database.DB.Preload("User").Where("user_id = ?", userID).Find(&userTasks)
 		return c.JSON(userTasks)
@@ -110,7 +110,7 @@ func TaskCreateHandler(c *fiber.Ctx) error {
 		Priority:    input.Priority,
 	}
 
-	if database.IsConnected {
+	if database.IsConnected && database.DB != nil {
 		if err := database.DB.Create(&task).Error; err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Görev oluşturulamadı"})
 		}
@@ -150,6 +150,11 @@ func TaskDetailHandler(c *fiber.Ctx) error {
 	}
 
 	var task models.Task
+
+	if database.DB == nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database connection not available"})
+	}
+
 	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", uint(id), userID).First(&task).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 	}
@@ -196,6 +201,11 @@ func TaskUpdateHandler(c *fiber.Ctx) error {
 
 	// Find the task
 	var task models.Task
+
+	if database.DB == nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database connection not available"})
+	}
+
 	if err := database.DB.Where("id = ? AND user_id = ?", uint(id), userID).First(&task).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 	}
@@ -246,6 +256,11 @@ func TaskDeleteHandler(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz görev ID"})
+	}
+
+	// Check database connection
+	if database.DB == nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database connection not available"})
 	}
 
 	// Soft delete the task

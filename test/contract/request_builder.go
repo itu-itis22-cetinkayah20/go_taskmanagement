@@ -17,12 +17,18 @@ import (
 )
 
 type BuildInput struct {
-	Doc      *openapi3.T
-	PathTmpl string
-	Op       *openapi3.Operation
-	Method   string
-	BaseURL  string // optional when using Fiber in-process
-	Token    TokenSource
+	Doc              *openapi3.T
+	PathTmpl         string
+	Op               *openapi3.Operation
+	Method           string
+	BaseURL          string // optional when using Fiber in-process
+	Token            TokenSource
+	LoginCredentials *LoginCredentials // For login endpoint testing
+}
+
+type LoginCredentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 // Returns *http.Request ready to send (with path, query, headers, and body populated).
@@ -70,7 +76,18 @@ func BuildRequest(ctx context.Context, in BuildInput) (*http.Request, error) {
 	if in.Op.RequestBody != nil && in.Op.RequestBody.Value != nil {
 		for mt, mtObj := range in.Op.RequestBody.Value.Content {
 			if strings.HasPrefix(mt, "application/json") && mtObj.Schema != nil {
-				doc := jsonForSchema(mtObj.Schema)
+				var doc map[string]any
+
+				// Special case for login endpoint
+				if in.Method == "POST" && in.PathTmpl == "/login" && in.LoginCredentials != nil {
+					doc = map[string]any{
+						"email":    in.LoginCredentials.Email,
+						"password": in.LoginCredentials.Password,
+					}
+				} else {
+					doc = jsonForSchema(mtObj.Schema)
+				}
+
 				bodyBytes, _ = json.Marshal(doc)
 				h.Set("Content-Type", "application/json")
 				break

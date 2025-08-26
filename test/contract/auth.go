@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type TokenSource interface {
@@ -22,6 +24,7 @@ type LoginToken struct {
 	BaseURL string
 	Email   string // Changed from User to Email to match your API
 	Pass    string
+	App     *fiber.App // For in-process testing
 
 	mu    sync.Mutex
 	token string
@@ -42,11 +45,23 @@ func (l *LoginToken) BearerToken() (string, error) {
 		"password": l.Pass,
 	})
 
-	// Use your actual login endpoint
-	req, _ := http.NewRequest(http.MethodPost, l.BaseURL+"/login", bytes.NewReader(body))
+	// Create request for Fiber in-process testing
+	req, _ := http.NewRequest(http.MethodPost, "/login", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	var resp *http.Response
+	var err error
+
+	if l.App != nil {
+		// Use Fiber in-process testing
+		resp, err = l.App.Test(req, 10_000)
+	} else {
+		// Use HTTP client (for external testing)
+		req, _ = http.NewRequest(http.MethodPost, l.BaseURL+"/login", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err = http.DefaultClient.Do(req)
+	}
+
 	if err != nil {
 		return "", err
 	}

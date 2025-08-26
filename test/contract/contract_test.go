@@ -1,9 +1,14 @@
 package contract
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +16,7 @@ import (
 	"go_taskmanagement/internal/app"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/gofiber/fiber/v2"
 )
 
 func Test_OpenAPI_Contract(t *testing.T) {
@@ -23,18 +29,33 @@ func Test_OpenAPI_Contract(t *testing.T) {
 		t.Fatalf("spec: %v", err)
 	}
 
-	// 2) Spin up Fiber app in-process
-	f := app.NewApp()
+	// 2) Spin up Fiber app in-process with test database
+	f := app.NewTestApp()
 
 	// Clear test database before this test group
 	if database.IsConnected {
 		database.DB.Exec("TRUNCATE TABLE tasks, users RESTART IDENTITY CASCADE")
 	}
 
-	// 3) Token source (choose one)
+	// 3) Token source - Create a real authenticated user
 	var token TokenSource
 	if v := os.Getenv("TEST_BEARER"); v != "" {
 		token = StaticToken(v)
+	} else {
+		// Create a login token that will register and login automatically
+		email := fmt.Sprintf("test_%s@example.com", generateRandomString())
+		password := "testpass123"
+
+		// Register the user first
+		RegisterUserForTest(f, email, password)
+
+		// Create login token with Fiber app reference
+		token = &LoginToken{
+			BaseURL: "", // Empty because we're using Fiber in-process
+			Email:   email,
+			Pass:    password,
+			App:     f, // Pass Fiber app for in-process testing
+		}
 	}
 
 	// 4) Iterate all operations dynamically - FIX: Actually run the tests!
@@ -47,13 +68,25 @@ func Test_OpenAPI_Contract(t *testing.T) {
 				t.Parallel()
 
 				// 4a) Build request dynamically from OpenAPI spec
-				req, err := BuildRequest(ctx, BuildInput{
+				buildInput := BuildInput{
 					Doc:      doc,
 					PathTmpl: path,
 					Op:       op,
 					Method:   method,
 					Token:    token,
-				})
+				}
+
+				// Special case for login endpoint - use registered user credentials
+				if method == "POST" && path == "/login" {
+					if loginToken, ok := token.(*LoginToken); ok {
+						buildInput.LoginCredentials = &LoginCredentials{
+							Email:    loginToken.Email,
+							Password: loginToken.Pass,
+						}
+					}
+				}
+
+				req, err := BuildRequest(ctx, buildInput)
 				if err != nil {
 					t.Fatalf("build req: %v", err)
 				}
@@ -170,4 +203,27 @@ func Test_OpenAPI_Contract_AuthFlow(t *testing.T) {
 			}
 		})
 	}
+}
+
+// RegisterUserForTest registers a user for testing via Fiber app
+func RegisterUserForTest(f *fiber.App, email, password string) error {
+	// Create register request
+	registerData := map[string]string{
+		"username": email[:strings.Index(email, "@")], // Extract username from email
+		"email":    email,
+		"password": password,
+	}
+
+	bodyBytes, _ := json.Marshal(registerData)
+	req, _ := http.NewRequest("POST", "/register", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request via Fiber
+	resp, err := f.Test(req, 10_000)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
 }

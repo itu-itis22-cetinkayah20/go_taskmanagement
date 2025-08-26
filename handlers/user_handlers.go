@@ -58,7 +58,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	}
 
 	// Database mode
-	if database.IsConnected {
+	if database.IsConnected && database.DB != nil {
 		// Check if user already exists
 		var existingUser models.User
 		if err := database.DB.Where("username = ? OR email = ?", input.Username, input.Email).First(&existingUser).Error; err == nil {
@@ -154,7 +154,7 @@ func LoginHandler(c *fiber.Ctx) error {
 	var found bool
 
 	// Database mode
-	if database.IsConnected {
+	if database.IsConnected && database.DB != nil {
 		if err := database.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Email veya şifre yanlış"})
 		}
