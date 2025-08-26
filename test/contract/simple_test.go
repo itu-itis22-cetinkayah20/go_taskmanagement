@@ -2,9 +2,11 @@ package contract
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"go_taskmanagement/internal/app"
 )
@@ -12,6 +14,11 @@ import (
 // Simple test to verify endpoints work without OpenAPI validation
 func TestBasicEndpoints(t *testing.T) {
 	f := app.NewApp()
+
+	// Generate unique user data for each test run
+	uniqueID := time.Now().UnixNano()
+	username := fmt.Sprintf("testuser_%d", uniqueID)
+	email := fmt.Sprintf("test_%d@example.com", uniqueID)
 
 	tests := []struct {
 		name           string
@@ -21,8 +28,8 @@ func TestBasicEndpoints(t *testing.T) {
 		expectedStatus int
 		authRequired   bool
 	}{
-		{"Register", "POST", "/register", `{"username":"test","email":"test@example.com","password":"password123"}`, 201, false},
-		{"Login", "POST", "/login", `{"email":"test@example.com","password":"password123"}`, 401, false}, // 401 because user doesn't exist yet
+		{"Register", "POST", "/register", fmt.Sprintf(`{"username":"%s","email":"%s","password":"password123"}`, username, email), 201, false},
+		{"Login", "POST", "/login", fmt.Sprintf(`{"email":"%s","password":"password123"}`, email), 200, false}, // 200 because user was just registered
 		{"Public Tasks", "GET", "/tasks/public", "", 200, false},
 		{"Private Tasks", "GET", "/tasks", "", 401, true},
 		{"Create Task", "POST", "/tasks", `{"title":"Test Task","description":"Test Description"}`, 401, true},

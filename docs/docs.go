@@ -17,12 +17,7 @@ const docTemplate = `{
     "paths": {
         "/login": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Kullanıcı adı ve şifre ile giriş yapar",
+                "description": "Email ve şifre ile giriş yapar",
                 "consumes": [
                     "application/json"
                 ],
@@ -36,12 +31,12 @@ const docTemplate = `{
                 "operationId": "LoginHandler",
                 "parameters": [
                     {
-                        "description": "Kullanıcı",
-                        "name": "user",
+                        "description": "Email ve şifre",
+                        "name": "credentials",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/handlers.LoginRequest"
                         }
                     }
                 ],
@@ -50,9 +45,7 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -112,12 +105,12 @@ const docTemplate = `{
                 "operationId": "RegisterHandler",
                 "parameters": [
                     {
-                        "description": "Kullanıcı",
+                        "description": "Kullanıcı kayıt bilgileri",
                         "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "$ref": "#/definitions/handlers.RegisterRequest"
                         }
                     }
                 ],
@@ -379,17 +372,64 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "hakan@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "1234"
+                }
+            }
+        },
+        "handlers.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "hakan@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "1234"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "hakan"
+                }
+            }
+        },
         "models.Task": {
             "type": "object",
             "properties": {
-                "details": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
+                "priority": {
+                    "description": "low, medium, high",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "pending, in_progress, completed",
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/models.User"
                 },
                 "user_id": {
                     "type": "integer"
@@ -399,10 +439,22 @@ const docTemplate = `{
         "models.User": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
-                "password": {
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Task"
+                    }
+                },
+                "updated_at": {
                     "type": "string"
                 },
                 "username": {

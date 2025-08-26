@@ -1,20 +1,61 @@
 definitions:
+  handlers.LoginRequest:
+    properties:
+      email:
+        example: hakan@example.com
+        type: string
+      password:
+        example: "1234"
+        type: string
+    type: object
+  handlers.RegisterRequest:
+    properties:
+      email:
+        example: hakan@example.com
+        type: string
+      password:
+        example: "1234"
+        type: string
+      username:
+        example: hakan
+        type: string
+    type: object
   models.Task:
     properties:
-      details:
+      created_at:
+        type: string
+      description:
         type: string
       id:
         type: integer
+      priority:
+        description: low, medium, high
+        type: string
+      status:
+        description: pending, in_progress, completed
+        type: string
       title:
         type: string
+      updated_at:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
       user_id:
         type: integer
     type: object
   models.User:
     properties:
+      created_at:
+        type: string
+      email:
+        type: string
       id:
         type: integer
-      password:
+      tasks:
+        items:
+          $ref: '#/definitions/models.Task'
+        type: array
+      updated_at:
         type: string
       username:
         type: string
@@ -26,23 +67,22 @@ paths:
     post:
       consumes:
       - application/json
-      description: Kullanıcı adı ve şifre ile giriş yapar
+      description: Email ve şifre ile giriş yapar
       operationId: LoginHandler
       parameters:
-      - description: Kullanıcı
+      - description: Email ve şifre
         in: body
-        name: user
+        name: credentials
         required: true
         schema:
-          $ref: '#/definitions/models.User'
+          $ref: '#/definitions/handlers.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
         "400":
           description: Bad Request
@@ -50,8 +90,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Kullanıcı girişi
       tags:
       - Auth
@@ -80,12 +118,12 @@ paths:
       description: Yeni kullanıcı oluşturur
       operationId: RegisterHandler
       parameters:
-      - description: Kullanıcı
+      - description: Kullanıcı kayıt bilgileri
         in: body
         name: user
         required: true
         schema:
-          $ref: '#/definitions/models.User'
+          $ref: '#/definitions/handlers.RegisterRequest'
       produces:
       - application/json
       responses:

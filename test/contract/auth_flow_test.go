@@ -3,23 +3,74 @@ package contract
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
+	"time"
 
 	"go_taskmanagement/internal/app"
+
+	"github.com/joho/godotenv"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
+
+// isDatabaseAvailable checks if PostgreSQL is available and configured
+func isDatabaseAvailable() bool {
+	// Load environment variables
+	godotenv.Load()
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		getEnv("TEST_DB_HOST", "localhost"),
+		getEnv("TEST_DB_USER", "postgres"),
+		getEnv("TEST_DB_PASSWORD", "1234"),
+		getEnv("TEST_DB_NAME", "go_taskmanagement_test"),
+		getEnv("TEST_DB_PORT", "5432"),
+		getEnv("TEST_DB_SSLMODE", "disable"),
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return false
+	}
+
+	// Test a simple query
+	var result int
+	if err := db.Raw("SELECT 1").Scan(&result).Error; err != nil {
+		return false
+	}
+
+	return true
+}
+
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
 
 // TestRealAuthenticationFlow tests the complete auth flow with real user registration and login
 func TestRealAuthenticationFlow(t *testing.T) {
-	t.Skip("Skipping real auth flow test - requires persistent database")
+	// Check if PostgreSQL is available
+	if !isDatabaseAvailable() {
+		t.Skip("Skipping real auth flow test - PostgreSQL database not available or not configured")
+	}
 
-	f := app.NewApp()
+	// Use test database
+	f := app.NewTestApp()
+
+	// Generate unique test user to avoid conflicts
+	timestamp := time.Now().UnixNano()
+	username := fmt.Sprintf("testuser_%d", timestamp)
+	email := fmt.Sprintf("testuser_%d@example.com", timestamp)
 
 	// Step 1: Register a new user
 	registerData := map[string]string{
-		"username": "testuser",
-		"email":    "testuser@example.com",
+		"username": username,
+		"email":    email,
 		"password": "password123",
 	}
 	registerBody, _ := json.Marshal(registerData)
@@ -41,7 +92,7 @@ func TestRealAuthenticationFlow(t *testing.T) {
 
 	// Step 2: Login with the registered user
 	loginData := map[string]string{
-		"email":    "testuser@example.com",
+		"email":    email,
 		"password": "password123",
 	}
 	loginBody, _ := json.Marshal(loginData)

@@ -3,12 +3,15 @@ package contract
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 )
@@ -141,9 +144,11 @@ func exampleForSchema(ref *openapi3.SchemaRef) any {
 			return "2024-01-01T00:00:00Z"
 		}
 		if s.Format == "email" {
-			return "test@example.com"
+			// Generate unique email for testing to avoid conflicts
+			return fmt.Sprintf("test_%s@example.com", generateRandomString())
 		}
-		return "example"
+		// Generate unique string values for potential username fields
+		return fmt.Sprintf("user_%s", generateRandomString())
 	case "integer":
 		return 1
 	case "number":
@@ -199,4 +204,15 @@ func jsonForSchema(ref *openapi3.SchemaRef) map[string]any {
 	default:
 		return map[string]any{"value": val}
 	}
+}
+
+// generateRandomString creates a random string for unique test data
+func generateRandomString() string {
+	// Use crypto/rand with larger byte array and add nanosecond timestamp
+	bytes := make([]byte, 16) // Increased to 16 bytes for more uniqueness
+	rand.Read(bytes)
+	// Add nanosecond timestamp to ensure uniqueness even if rand produces same value
+	nanos := fmt.Sprintf("%d", time.Now().UnixNano())
+	result := hex.EncodeToString(bytes) + nanos[len(nanos)-8:] // Take last 8 digits
+	return result
 }

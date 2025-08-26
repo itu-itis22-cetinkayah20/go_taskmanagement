@@ -1,8 +1,10 @@
 package handlers
 
 import (
-	"go_taskmanagement/models"
 	"strconv"
+
+	"go_taskmanagement/database"
+	"go_taskmanagement/models"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -16,6 +18,13 @@ import (
 // @Success 200 {array} models.Task
 // @Router /tasks/public [get]
 func PublicTasksHandler(c *fiber.Ctx) error {
+	if database.IsConnected {
+		var publicTasks []models.Task
+		database.DB.Preload("User").Where("user_id = ?", 0).Find(&publicTasks)
+		return c.JSON(publicTasks)
+	}
+
+	// In-memory mode (fallback)
 	return c.JSON(models.PublicTasks)
 }
 
@@ -30,10 +39,18 @@ func PublicTasksHandler(c *fiber.Ctx) error {
 // @Router /tasks [get]
 func TasksListHandler(c *fiber.Ctx) error {
 	uid := c.Locals("user_id")
-	userID, ok := uid.(int)
+	userID, ok := uid.(uint)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
+
+	if database.IsConnected {
+		var userTasks []models.Task
+		database.DB.Preload("User").Where("user_id = ?", userID).Find(&userTasks)
+		return c.JSON(userTasks)
+	}
+
+	// In-memory mode (fallback)
 	var userTasks []models.Task
 	for _, t := range models.Tasks {
 		if t.UserID == userID {
@@ -56,21 +73,55 @@ func TasksListHandler(c *fiber.Ctx) error {
 // @Failure 400 {object} map[string]string
 // @Router /tasks [post]
 func TaskCreateHandler(c *fiber.Ctx) error {
-	var task models.Task
-	if err := c.BodyParser(&task); err != nil {
+	var input struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Status      string `json:"status"`
+		Priority    string `json:"priority"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz veri"})
 	}
-	if task.Title == "" {
+
+	if input.Title == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Başlık zorunlu"})
 	}
+
 	uid := c.Locals("user_id")
-	userID, ok := uid.(int)
+	userID, ok := uid.(uint)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
-	task.ID = len(models.Tasks) + 1
-	task.UserID = userID
-	models.Tasks = append(models.Tasks, task)
+
+	// Set defaults
+	if input.Status == "" {
+		input.Status = "pending"
+	}
+	if input.Priority == "" {
+		input.Priority = "medium"
+	}
+
+	task := models.Task{
+		UserID:      userID,
+		Title:       input.Title,
+		Description: input.Description,
+		Status:      input.Status,
+		Priority:    input.Priority,
+	}
+
+	if database.IsConnected {
+		if err := database.DB.Create(&task).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Görev oluşturulamadı"})
+		}
+		// Preload user information for the created task
+		database.DB.Preload("User").First(&task, task.ID)
+	} else {
+		// In-memory mode (fallback)
+		task.ID = uint(len(models.Tasks) + 1)
+		models.Tasks = append(models.Tasks, task)
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(task)
 }
 
@@ -87,21 +138,23 @@ func TaskCreateHandler(c *fiber.Ctx) error {
 // @Router /tasks/{id} [get]
 func TaskDetailHandler(c *fiber.Ctx) error {
 	uid := c.Locals("user_id")
-	userID, ok := uid.(int)
+	userID, ok := uid.(uint)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
+
 	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz görev ID"})
 	}
-	for _, t := range models.Tasks {
-		if t.ID == id && t.UserID == userID {
-			return c.JSON(t)
-		}
+
+	var task models.Task
+	if err := database.DB.Preload("User").Where("id = ? AND user_id = ?", uint(id), userID).First(&task).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 	}
-	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
+
+	return c.JSON(task)
 }
 
 // TaskUpdateHandler görevi günceller
@@ -119,27 +172,57 @@ func TaskDetailHandler(c *fiber.Ctx) error {
 // @Router /tasks/{id} [put]
 func TaskUpdateHandler(c *fiber.Ctx) error {
 	uid := c.Locals("user_id")
-	userID, ok := uid.(int)
+	userID, ok := uid.(uint)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
+
 	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz görev ID"})
 	}
-	var updated models.Task
-	if err := c.BodyParser(&updated); err != nil {
+
+	var input struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Status      string `json:"status"`
+		Priority    string `json:"priority"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz veri"})
 	}
-	for i, t := range models.Tasks {
-		if t.ID == id && t.UserID == userID {
-			models.Tasks[i].Title = updated.Title
-			models.Tasks[i].Details = updated.Details
-			return c.JSON(models.Tasks[i])
-		}
+
+	// Find the task
+	var task models.Task
+	if err := database.DB.Where("id = ? AND user_id = ?", uint(id), userID).First(&task).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 	}
-	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
+
+	// Update fields
+	updates := make(map[string]interface{})
+	if input.Title != "" {
+		updates["title"] = input.Title
+	}
+	if input.Description != "" {
+		updates["description"] = input.Description
+	}
+	if input.Status != "" {
+		updates["status"] = input.Status
+	}
+	if input.Priority != "" {
+		updates["priority"] = input.Priority
+	}
+
+	if err := database.DB.Model(&task).Updates(updates).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Görev güncellenemedi"})
+	}
+
+	// Reload the task with user information
+	database.DB.Preload("User").First(&task, task.ID)
+
+	return c.JSON(task)
 }
 
 // TaskDeleteHandler görevi siler
@@ -154,20 +237,26 @@ func TaskUpdateHandler(c *fiber.Ctx) error {
 // @Router /tasks/{id} [delete]
 func TaskDeleteHandler(c *fiber.Ctx) error {
 	uid := c.Locals("user_id")
-	userID, ok := uid.(int)
+	userID, ok := uid.(uint)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Kullanıcı bilgisi alınamadı"})
 	}
+
 	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz görev ID"})
 	}
-	for i, t := range models.Tasks {
-		if t.ID == id && t.UserID == userID {
-			models.Tasks = append(models.Tasks[:i], models.Tasks[i+1:]...)
-			return c.SendStatus(fiber.StatusNoContent)
-		}
+
+	// Soft delete the task
+	result := database.DB.Where("id = ? AND user_id = ?", uint(id), userID).Delete(&models.Task{})
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Görev silinemedi"})
 	}
-	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
+
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
 }

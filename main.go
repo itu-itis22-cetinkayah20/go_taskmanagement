@@ -5,18 +5,34 @@ package main
 // @name Authorization
 
 import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	swagger "github.com/gofiber/swagger"
+	"github.com/joho/godotenv"
 	_ "go_taskmanagement/docs"
 	"log"
+	"os"
 
-	"github.com/gofiber/fiber/v2"
-	swagger "github.com/gofiber/swagger"
-
+	"go_taskmanagement/database"
 	"go_taskmanagement/handlers"
 	"go_taskmanagement/middleware"
 )
 
 func main() {
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
+	// Connect to database
+	database.Connect()
+	database.Migrate()
+	database.SeedTestData()
+
 	app := fiber.New()
+
+	// CORS middleware
+	app.Use(cors.New())
 
 	// Swagger UI endpoints
 	app.Get("/swagger/*", swagger.HandlerDefault)
@@ -34,6 +50,11 @@ func main() {
 	app.Delete("/tasks/:id", middleware.AuthMiddleware, handlers.TaskDeleteHandler)
 	app.Post("/logout", middleware.AuthMiddleware, handlers.LogoutHandler)
 
-	log.Println("Server started on :8080")
-	log.Fatal(app.Listen(":8080"))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Server started on :%s", port)
+	log.Fatal(app.Listen(":" + port))
 }

@@ -7,14 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"go_taskmanagement/database"
 	"go_taskmanagement/internal/app"
 
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
 func Test_OpenAPI_Contract(t *testing.T) {
-	t.Parallel()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -26,6 +25,11 @@ func Test_OpenAPI_Contract(t *testing.T) {
 
 	// 2) Spin up Fiber app in-process
 	f := app.NewApp()
+
+	// Clear test database before this test group
+	if database.IsConnected {
+		database.DB.Exec("TRUNCATE TABLE tasks, users RESTART IDENTITY CASCADE")
+	}
 
 	// 3) Token source (choose one)
 	var token TokenSource
@@ -85,6 +89,11 @@ func Test_OpenAPI_Contract_AuthFlow(t *testing.T) {
 	}
 
 	f := app.NewApp()
+
+	// Clear test database before this test group
+	if database.IsConnected {
+		database.DB.Exec("TRUNCATE TABLE tasks, users RESTART IDENTITY CASCADE")
+	}
 
 	// Test authentication flow specifically
 	testCases := []struct {
