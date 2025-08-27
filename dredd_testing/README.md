@@ -76,9 +76,6 @@ run_tests.bat
 
 ### Manuel Test
 ```bash
-# Server'ı ayrı terminal'de başlat
-cd ..
-go run main.go
 
 # Testleri çalıştır
 npx dredd --config=dredd-simple.yml
