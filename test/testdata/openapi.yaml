@@ -202,6 +202,7 @@ paths:
           schema:
             type: integer
             format: int64
+            example: 1
       responses:
         '200':
           description: Task details
@@ -237,6 +238,7 @@ paths:
           schema:
             type: integer
             format: int64
+            example: 1
       requestBody:
         required: true
         content:
@@ -284,6 +286,7 @@ paths:
           schema:
             type: integer
             format: int64
+            example: 1
       responses:
         '200':
           description: Task deleted successfully
