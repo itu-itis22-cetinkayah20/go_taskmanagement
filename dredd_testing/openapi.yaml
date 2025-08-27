@@ -2,32 +2,10 @@ openapi: 3.0.3
 info:
   title: Go Task Management API
   description: JWT tabanlı kimlik doğrulama ile görev yönetimi API'si
-        "201":
-          description: User created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Kullanıcı başarıyla oluşturuldu"
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        example: 1
-                      username:
-                        type: string
-                        example: "john_doe"
-                      email:
-                        type: string
-                        format: email
-                        example: "john@example.com".0.0
+  version: 1.0.0
   contact:
-    name: Hakan Çetinkaya
-    email: hakan@example.com
+    name: API Support
+    email: support@example.com
 
 servers:
   - url: http://localhost:8080
@@ -39,20 +17,17 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  
+
   schemas:
     User:
       type: object
-      required:
-        - username
-        - email
-        - password
       properties:
         id:
           type: integer
           example: 1
         username:
           type: string
+          minLength: 3
           example: "john_doe"
         email:
           type: string
@@ -60,48 +35,13 @@ components:
           example: "john@example.com"
         password:
           type: string
-          minLength: 4
           example: "password123"
         created_at:
           type: string
-          format: date-time
+          example: ""
         updated_at:
           type: string
-          format: date-time
-
-    Task:
-      type: object
-      required:
-        - title
-        - status
-        - priority
-      properties:
-        id:
-          type: integer
-          example: 1
-        title:
-          type: string
-          example: "Complete project documentation"
-        description:
-          type: string
-          example: "Write comprehensive API documentation"
-        status:
-          type: string
-          enum: [pending, in_progress, completed]
-          example: "pending"
-        priority:
-          type: string
-          enum: [low, medium, high]
-          example: "high"
-        user_id:
-          type: integer
-          example: 1
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+          example: ""
 
     LoginRequest:
       type: object

@@ -8,6 +8,8 @@ const BASE_URL = 'http://127.0.0.1:8080';
 let authToken = '';
 let testUserId = null;
 let createdTaskId = null;
+let testUserEmail = '';
+let testUserPassword = 'test123456';
 
 console.log('🚀 Starting Dredd API Tests...');
 
@@ -27,6 +29,9 @@ hooks.beforeAll(async (transactions, done) => {
       email: testEmail, 
       password: testPassword
     });
+    
+    // Global olarak sakla
+    testUserEmail = testEmail;
     
     if (registerResponse.status === 201) {
       console.log('✅ User registered successfully');
@@ -130,6 +135,19 @@ hooks.before('/register > Register a new user > 400 > application/json', (transa
     email: 'invalid-email', // Geçersiz email format
     password: '123' // Çok kısa password
   });
+  done();
+});
+
+// Login 200 testi için setup sırasında oluşturulan kullanıcıyı kullan
+hooks.before('/login > Login user > 200 > application/json', (transaction, done) => {
+  console.log('🔑 Login 200 test - global test user kullanılıyor');
+  
+  // Global test user credential'larını kullan  
+  transaction.request.body = JSON.stringify({
+    email: testUserEmail,
+    password: testUserPassword
+  });
+  
   done();
 });
 
