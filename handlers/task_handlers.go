@@ -199,6 +199,11 @@ func TaskUpdateHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz veri"})
 	}
 
+	// Validate title if provided
+	if input.Title == "" && input.Description == "" && input.Status == "" && input.Priority == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "En az bir alan güncellenmelidir"})
+	}
+
 	// Find the task
 	var task models.Task
 
@@ -242,7 +247,7 @@ func TaskUpdateHandler(c *fiber.Ctx) error {
 // @Tags Tasks
 // @Security BearerAuth
 // @Param id path int true "Görev ID"
-// @Success 204 {string} string ""
+// @Success 200 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Router /tasks/{id} [delete]
 func TaskDeleteHandler(c *fiber.Ctx) error {
@@ -273,5 +278,5 @@ func TaskDeleteHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Görev bulunamadı veya yetkiniz yok"})
 	}
 
-	return c.SendStatus(fiber.StatusNoContent)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Task deleted successfully"})
 }

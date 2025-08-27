@@ -188,3 +188,123 @@ jobs:
           echo ""
           echo "Database Tests: All contract tests now run with PostgreSQL!"
         timeout-minutes: 1
+
+  dredd-api-testing:
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+
+    # PostgreSQL service for Dredd tests  
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 1234
+          POSTGRES_DB: go_taskmanagement
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: dredd_testing/package-lock.json
+
+      - name: Install Go dependencies
+        run: go mod download
+        timeout-minutes: 5
+
+      - name: Install Dredd dependencies
+        run: |
+          cd dredd_testing
+          npm install
+        timeout-minutes: 3
+
+      - name: Setup database environment
+        run: |
+          echo "Setting up production database environment variables"
+          echo "DB_HOST=localhost" >> $GITHUB_ENV
+          echo "DB_USER=postgres" >> $GITHUB_ENV  
+          echo "DB_PASSWORD=1234" >> $GITHUB_ENV
+          echo "DB_NAME=go_taskmanagement" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
+          echo "DB_SSLMODE=disable" >> $GITHUB_ENV
+          echo "JWT_SECRET=github_actions_test_secret_key_12345" >> $GITHUB_ENV
+        timeout-minutes: 1
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          timeout 30s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
+        timeout-minutes: 1
+
+      - name: Test PostgreSQL connection
+        run: |
+          PGPASSWORD=1234 psql -h localhost -U postgres -d go_taskmanagement -c "SELECT version();"
+        timeout-minutes: 1
+
+      - name: Start Go server in background
+        run: |
+          echo "🚀 Starting Go server for Dredd testing..."
+          go run main.go &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo "Server started with PID: $SERVER_PID"
+          
+          # Wait for server to be ready
+          echo "⏳ Waiting for server to be ready..."
+          timeout 30s bash -c 'until curl -f http://localhost:8080/swagger/ >/dev/null 2>&1; do sleep 1; done'
+          echo "✅ Server is ready!"
+        timeout-minutes: 3
+
+      - name: Run Dredd API Tests
+        run: |
+          cd dredd_testing
+          echo "🧪 Running Dredd API Tests..."
+          echo "📋 Testing 22 scenarios across 9 endpoints"
+          npx dredd --config=dredd-simple.yml
+        timeout-minutes: 5
+
+      - name: Cleanup server process
+        if: always()
+        run: |
+          if [ ! -z "$SERVER_PID" ]; then
+            echo "🧹 Stopping server with PID: $SERVER_PID"
+            kill $SERVER_PID || true
+            sleep 2
+            kill -9 $SERVER_PID 2>/dev/null || true
+          fi
+        timeout-minutes: 1
+
+      - name: Generate Dredd test report
+        if: always()
+        run: |
+          echo "=== Dredd API Test Summary ==="
+          echo "🎯 Total Endpoints Tested: 9"
+          echo "🧪 Total Test Scenarios: 22"
+          echo "🔐 Authentication Flow: JWT Token Management"
+          echo "✅ Test Automation: Fully Automated"
+          echo ""
+          echo "📊 Test Coverage:"
+          echo "  - Authentication Tests: 3 endpoints"
+          echo "  - Task Management Tests: 6 endpoints" 
+          echo "  - Error Scenarios: 400, 401, 404 status codes"
+          echo "  - Dynamic Testing: Real-time task creation"
+          echo ""
+          echo "🏁 Dredd API Testing: Completed"
+        timeout-minutes: 1

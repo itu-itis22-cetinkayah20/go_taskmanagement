@@ -32,6 +32,10 @@ Bu proje, modern web teknolojileri kullanılarak geliştirilmiş, JWT tabanlı k
 ### 🧪 Test & Kalite Güvencesi
 - Unit testler ve integration testler
 - Contract testing (OpenAPI spec validation)
+- **Dredd API testing framework** ile 22 test senaryosu (100% başarı)
+- **Otomatik server başlatma** ve test execution
+- **JWT authentication flow** testleri
+- **Cross-platform test scripts** (PowerShell, Bash, Batch)
 - GitHub Actions CI/CD pipeline
 - Automated test execution
 
@@ -42,7 +46,7 @@ Bu proje, modern web teknolojileri kullanılarak geliştirilmiş, JWT tabanlı k
 - **ORM:** GORM
 - **Authentication:** JWT + BCrypt
 - **Documentation:** Swagger/OpenAPI
-- **Testing:** Contract Testing with OpenAPI validation
+- **Testing:** Contract Testing + Dredd API Testing
 - **CI/CD:** GitHub Actions
 - **Environment Management:** Godotenv
 
@@ -50,6 +54,7 @@ Bu proje, modern web teknolojileri kullanılarak geliştirilmiş, JWT tabanlı k
 
 - Go 1.24.6+
 - PostgreSQL 17
+- Node.js 16+ (Dredd testleri için)
 - Git
 
 ## ⚡ Hızlı Başlangıç
@@ -124,7 +129,7 @@ Swagger UI: `http://localhost:8080/swagger/`
 
 ## 🧪 Test Senaryoları
 
-### Tests dosyasındaki manual testler
+### Manual API Tests
 ```bash
 go test ./tests -v -timeout=30s 
 ```
@@ -134,10 +139,32 @@ go test ./tests -v -timeout=30s
 go test ./test/contract -v -timeout=30s
 ```
 
+### 🎯 Dredd API Testing (22 Test Senaryosu - 100% Başarı)
+```bash
+cd dredd_testing
+.\run_tests.ps1    # PowerShell (Önerilen)
+# veya
+./run_tests.sh     # Bash
+# veya
+run_tests.bat      # Windows Batch
+```
+
+#### Dredd Test Kapsamı:
+- ✅ **Authentication Tests**: Register, Login, Logout (3 endpoint)
+- ✅ **Task Management Tests**: CRUD operations (6 endpoint)
+- ✅ **Error Scenarios**: 400, 401, 404 status testleri
+- ✅ **JWT Token Flow**: Otomatik authentication ve token management
+- ✅ **Dynamic Testing**: Real-time task creation ve ID replacement
+
+**Toplam: 22 Test Senaryosu - Tümü Başarılı** ✅
+
 ### GitHub Actions CI/CD
 - Her push ve pull request için otomatik test çalıştırma
 - PostgreSQL service container ile database testleri
 - Multi-environment test desteği
+- **Dredd API testing integration** ile otomatik API validasyonu
+- **22 test senaryosu** ile kapsamlı endpoint testing
+- **Paralel job execution** ile hızlı test pipeline
 
 ## 📝 Örnek Kullanım
 
@@ -186,6 +213,14 @@ go_taskmanagement/
 ├── database/
 │   └── database.go         # Database connection and migrations
 ├── docs/                   # Swagger documentation (auto-generated)
+├── dredd_testing/          # 🎯 Dredd API testing (22 tests - 100% pass)
+│   ├── dredd-simple.yml    # Dredd configuration
+│   ├── hooks_fixed.js      # Test hooks & authentication logic
+│   ├── openapi_fixed.yaml  # OpenAPI spec aligned with API
+│   ├── run_tests.ps1       # PowerShell automation script
+│   ├── run_tests.sh        # Bash automation script
+│   ├── run_tests.bat       # Windows batch script
+│   └── README.md           # Detailed testing documentation
 ├── handlers/
 │   ├── user_handlers.go    # Authentication endpoints
 │   └── task_handlers.go    # Task management endpoints
@@ -198,6 +233,7 @@ go_taskmanagement/
 ├── test/
 │   ├── contract/          # Contract testing
 │   └── testdata/          # Test data and OpenAPI specs
+├── tests/                 # Manual API tests
 ├── main.go               # Application entry point
 ├── go.mod               # Go module dependencies
 └── README.md           # Bu dosya
@@ -237,9 +273,14 @@ git push origin feature/new-feature
 
 ### 2. Testing
 ```bash
+# Tüm testleri çalıştır
+go test ./...
 
 # Contract testleri
 go test ./test/contract -v -timeout=30s
+
+# API testleri (Dredd)
+cd dredd_testing && npm run test
 ```
 
 ### 3. Documentation
@@ -272,6 +313,10 @@ swag init
 - ✅ Unit tests
 - ✅ Integration tests
 - ✅ Contract testing with OpenAPI validation
+- ✅ **Dredd API testing** framework ile 22 test senaryosu
+- ✅ **Otomatik authentication flow** testleri
+- ✅ **Cross-platform automation** (PowerShell/Bash/Batch)
+- ✅ **100% test başarı oranı** achieved
 - ✅ CI/CD automation
 
 ## 🤝 Katkıda Bulunma

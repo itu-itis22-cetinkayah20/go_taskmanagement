@@ -1,0 +1,26 @@
+{
+  "name": "go-taskmanagement-dredd-tests",
+  "version": "1.0.0",
+  "description": "Dredd API testing for Go Task Management API",
+  "main": "hooks.js",
+  "scripts": {
+    "dredd": "dredd",
+    "test": "dredd --config=dredd.yml",
+    "test:verbose": "dredd --config=dredd.yml --level=debug"
+  },
+  "keywords": [
+    "dredd",
+    "api",
+    "testing",
+    "go",
+    "task-management"
+  ],
+  "author": "Hakan Çetinkaya",
+  "license": "MIT",
+  "devDependencies": {
+    "dredd": "^14.1.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}

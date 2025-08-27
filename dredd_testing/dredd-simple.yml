@@ -1,0 +1,21 @@
+reporter: cli
+hookfiles: "./hooks_fixed.js"
+language: nodejs
+server: go run ../main.go
+server-wait: 5
+init: false
+names: false
+only: []
+output: []
+header: []
+sorted: false
+user: null
+inline-errors: false
+details: false
+method: []
+color: true
+loglevel: warning
+path: []
+config: ./dredd-simple.yml
+blueprint: openapi_fixed.yaml
+endpoint: http://localhost:8080
