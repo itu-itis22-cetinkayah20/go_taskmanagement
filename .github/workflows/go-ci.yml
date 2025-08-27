@@ -258,38 +258,18 @@ jobs:
           PGPASSWORD=1234 psql -h localhost -U postgres -d go_taskmanagement -c "SELECT version();"
         timeout-minutes: 1
 
-      - name: Start Go server in background
-        run: |
-          echo "🚀 Starting Go server for Dredd testing..."
-          go run main.go &
-          SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          echo "Server started with PID: $SERVER_PID"
-          
-          # Wait for server to be ready
-          echo "⏳ Waiting for server to be ready..."
-          timeout 30s bash -c 'until curl -f http://localhost:8080/swagger/ >/dev/null 2>&1; do sleep 1; done'
-          echo "✅ Server is ready!"
-        timeout-minutes: 3
-
-      - name: Run Dredd API Tests
+      - name: Run Dredd API Tests (with auto server start)
         run: |
           cd dredd_testing
-          echo "🧪 Running Dredd API Tests..."
+          echo "🧪 Running Dredd API Tests with automatic server startup..."
           echo "📋 Testing 22 scenarios across 9 endpoints"
+          echo "🌐 Server will be automatically started by Dredd"
+          
+          # Set working directory to parent for server start
+          export DREDD_CWD="../"
+          
           npx dredd --config=dredd-simple.yml
-        timeout-minutes: 5
-
-      - name: Cleanup server process
-        if: always()
-        run: |
-          if [ ! -z "$SERVER_PID" ]; then
-            echo "🧹 Stopping server with PID: $SERVER_PID"
-            kill $SERVER_PID || true
-            sleep 2
-            kill -9 $SERVER_PID 2>/dev/null || true
-          fi
-        timeout-minutes: 1
+        timeout-minutes: 8
 
       - name: Generate Dredd test report
         if: always()
@@ -298,7 +278,7 @@ jobs:
           echo "🎯 Total Endpoints Tested: 9"
           echo "🧪 Total Test Scenarios: 22"
           echo "🔐 Authentication Flow: JWT Token Management"
-          echo "✅ Test Automation: Fully Automated"
+          echo "✅ Test Automation: Fully Automated with Server Auto-Start"
           echo ""
           echo "📊 Test Coverage:"
           echo "  - Authentication Tests: 3 endpoints"

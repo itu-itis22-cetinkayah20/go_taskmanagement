@@ -1,7 +1,12 @@
 # Dredd API Test Script for PowerShell
 # Bu script otomatik olarak server'ı başlatır ve API testlerini çalıştırır
 
-Write-Host "🚀 Go Task Management API - Otomatik Test Başlatılıyor..." -ForegroundColor Green
+Write-Host "🚀 Starting Dredd API Tests with Automatic Server Start..." -ForegroundColor Green
+Write-Host "📋 Dredd will automatically start the Go server" -ForegroundColor Yellow
+Write-Host "⏳ Please wait while server starts and tests execute..." -ForegroundColor Cyan
+
+# Run Dredd with automatic server startup
+Write-Host "`n🧪 Running Dredd tests..." -ForegroundColor Green
 
 # Dredd test dizinine geç
 Set-Location $PSScriptRoot

@@ -1,6 +1,11 @@
 # Go Task Management API - Dredd Test Suite
 
-Bu proje, Go Task Management API'si için kapsamlı API testlerini içermektedir. Dredd framework kullanılarak OpenAPI 3.0.3 spesifikasyonuna göre otomatik testler yapılmaktadır.
+Bu proje, Go Task Management API'si ### dredd-simple.yml
+- **Server**: Otomatik başlatma: `go run ../main.go`
+- **Server Wait**: 8 saniye (server başlatma için)
+- **Blueprint**: openapi_fixed.yaml
+- **Hooks**: hooks_fixed.js
+- **Reporter**: cli (konsol çıktısı)apsamlı API testlerini içermektedir. Dredd framework kullanılarak OpenAPI 3.0.3 spesifikasyonuna göre otomatik testler yapılmaktadır.
 
 ## 🎯 Test Kapsamı
 
@@ -95,6 +100,7 @@ npx dredd --config=dredd-simple.yml
 - ✅ **Smart ID Replacement**: Task ID'lerini dinamik değiştirme
 - ✅ **401 Test Scenarios**: Invalid token testleri
 - ✅ **Data Cleanup**: Test sonrası temizlik
+- ✅ **Automatic Server Startup**: Dredd otomatik olarak Go server'ı başlatır
 
 ## 📊 Test Sonuçları
 

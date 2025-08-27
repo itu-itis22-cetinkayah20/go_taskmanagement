@@ -1,6 +1,9 @@
 const hooks = require('hooks');
 const axios = require('axios');
 
+// Base URL configuration
+const BASE_URL = 'http://127.0.0.1:8080';
+
 // Global değişkenler
 let authToken = '';
 let testUserId = null;
@@ -19,7 +22,7 @@ hooks.beforeAll(async (transactions, done) => {
 
   try {
     // Test kullanıcısını kaydet
-    const registerResponse = await axios.post('http://localhost:8080/register', {
+    const registerResponse = await axios.post(`${BASE_URL}/register`, {
       username: testUsername,
       email: testEmail, 
       password: testPassword
@@ -38,7 +41,7 @@ hooks.beforeAll(async (transactions, done) => {
 
   try {
     // Kullanıcıyı login et
-    const loginResponse = await axios.post('http://localhost:8080/login', {
+    const loginResponse = await axios.post(`${BASE_URL}/login`, {
       email: testEmail,
       password: testPassword
     });
@@ -48,7 +51,7 @@ hooks.beforeAll(async (transactions, done) => {
     console.log('✅ Authentication successful, token obtained');
 
     // Test task'ı oluştur
-    const createTaskResponse = await axios.post('http://localhost:8080/tasks', {
+    const createTaskResponse = await axios.post(`${BASE_URL}/tasks`, {
       title: 'Test Task for Dredd',
       description: 'This is a test task for Dredd testing',
       status: 'pending',
@@ -210,7 +213,7 @@ hooks.afterAll(async (transactions, done) => {
   try {
     // Test verilerini temizle
     if (createdTaskId && authToken) {
-      await axios.delete(`http://localhost:8080/tasks/${createdTaskId}`, {
+      await axios.delete(`${BASE_URL}/tasks/${createdTaskId}`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
     }
