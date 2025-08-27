@@ -122,6 +122,17 @@ hooks.before('/logout > Logout user > 401 > application/json', (transaction, don
   done();
 });
 
+// Register 400 testi için invalid data kullan
+hooks.before('/register > Register a new user > 400 > application/json', (transaction, done) => {
+  // Eksik veya geçersiz veri gönder
+  transaction.request.body = JSON.stringify({
+    username: '', // Boş username
+    email: 'invalid-email', // Geçersiz email format
+    password: '123' // Çok kısa password
+  });
+  done();
+});
+
 // Tasks 401 testleri için geçersiz token kullan
 hooks.before('/tasks > Get user tasks > 401 > application/json', (transaction, done) => {
   transaction.request.headers['Authorization'] = 'Bearer invalid_token_here';
@@ -202,6 +213,22 @@ hooks.before('/tasks/{id} > Delete task > 401 > application/json', (transaction,
     transaction.fullPath = transaction.fullPath.replace('/tasks/1', `/tasks/${createdTaskId}`);
     transaction.request.uri = transaction.request.uri.replace('/tasks/1', `/tasks/${createdTaskId}`);
   }
+  done();
+});
+
+// 404 testleri için non-existent task ID kullan (değiştirme!)
+hooks.before('/tasks/{id} > Get task by ID > 404 > application/json', (transaction, done) => {
+  // Var olmayan task ID kullan (değiştirme yapma)
+  done();
+});
+
+hooks.before('/tasks/{id} > Update task > 404 > application/json', (transaction, done) => {
+  // Var olmayan task ID kullan (değiştirme yapma)
+  done();
+});
+
+hooks.before('/tasks/{id} > Delete task > 404 > application/json', (transaction, done) => {
+  // Var olmayan task ID kullan (değiştirme yapma)
   done();
 });
 
