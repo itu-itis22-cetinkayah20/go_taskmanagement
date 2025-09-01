@@ -166,41 +166,6 @@ run_tests.bat      # Windows Batch
 - **22 test senaryosu** ile kapsamlı endpoint testing
 - **Paralel job execution** ile hızlı test pipeline
 
-## 📝 Örnek Kullanım
-
-### 1. Kullanıcı Kaydı
-```bash
-curl -X POST http://localhost:8080/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "hakan",
-    "email": "hakan@example.com",
-    "password": "1234"
-  }'
-```
-
-### 2. Giriş Yapma
-```bash
-curl -X POST http://localhost:8080/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "hakan@example.com",
-    "password": "1234"
-  }'
-```
-
-### 3. Görev Oluşturma
-```bash
-curl -X POST http://localhost:8080/tasks \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "title": "Proje Tamamla",
-    "description": "Go Task Management API projesini bitir",
-    "status": "pending",
-    "priority": "high"
-  }'
-```
 
 ## 🏗️ Proje Yapısı
 
@@ -256,33 +221,13 @@ go_taskmanagement/
 - Tüm origin'lere izin (development için)
 - Production için kısıtlama önerilir
 
-## 🚦 Development Workflow
 
-### 1. Feature Development
+
+### 1. Testing
 ```bash
-# Feature branch oluştur
-git checkout -b feature/new-feature
-
-
-
-
-# Commit ve push
-git commit -m "feat: new feature description"
-git push origin feature/new-feature
-```
-
-### 2. Testing
-```bash
-# Tüm testleri çalıştır
-go test ./...
 
 # Contract testleri
 go test ./test/contract -v -timeout=30s
-
-# API testleri (Dredd)
-cd dredd_testing && npm run test
-```
-
 ### 3. Documentation
 ```bash
 # Swagger documentation güncelle

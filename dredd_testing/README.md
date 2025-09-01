@@ -77,7 +77,7 @@ run_tests.bat
 ### Manuel Test
 ```bash
 
-# Testleri çalıştır
+# Testleri çalıştır(Önerilen)
 npx dredd --config=dredd-simple.yml
 ```
 
